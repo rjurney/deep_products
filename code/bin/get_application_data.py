@@ -17,7 +17,7 @@ BASE_URL = 'https://bulkdata.uspto.gov/data/patent/application/redbook/fulltext/
 
 this_week = iso8601.parse_date('2008-01-03')
 
-while this_week < iso8601.parse_date('2018-12-01'):
+while this_week < iso8601.parse_date('2019-04-01'):
 
     full_url = BASE_URL.format(
         this_week.year, 
