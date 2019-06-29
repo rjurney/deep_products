@@ -6,4 +6,5 @@ iso8601
 lxml
 snorkel
 snorkel-metal
-google-api-python-client
+pyspark
+requests
