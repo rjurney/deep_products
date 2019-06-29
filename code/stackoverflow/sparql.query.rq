@@ -1,0 +1,14 @@
+# Select all programming languages and their tags
+SELECT ?language ?value WHERE {
+  # language/instanceof/programming language
+  ?language wdt:P31 wd:Q9143 .
+  # language/stackexchange tag/tag value
+  ?language wdt:P1482 ?value .
+}
+
+# Select all stackexchange tags and their associated entities
+SELECT ?entity ?value WHERE {
+  # type/stackexchange tag/tag value
+  ?entity wdt:P1482 ?value .
+}
+

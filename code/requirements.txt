@@ -4,4 +4,7 @@ plotly
 findspark
 iso8601
 lxml
-
+snorkel
+snorkel-metal
+pyspark
+requests
