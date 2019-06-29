@@ -1,3 +1,4 @@
-#!/usr/bin/env python
+#!/bin/bash
+set -x -e
 
-sudo pip install lxml
+sudo pip-3.6 install lxml frozendict ipython pandas
