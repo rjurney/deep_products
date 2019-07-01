@@ -1,7 +1,7 @@
 from pyspark.sql import SparkSession
 
 
-spark = SparkSession.builder.appName('Deep Products').getOrCreate()
+spark = SparkSession.builder.appName('Deep Products - Convert XML to Parquet').getOrCreate()
 sc = spark.sparkContext
 
 

@@ -2,7 +2,7 @@ from pyspark.sql import SparkSession
 import pyspark.sql.functions as F
 
 
-spark = SparkSession.builder.appName('Deep Products').getOrCreate()
+spark = SparkSession.builder.appName('Deep Products - Sample JSON').getOrCreate()
 sc = spark.sparkContext
 
 
