@@ -4,7 +4,13 @@ plotly
 findspark
 iso8601
 lxml
-snorkel
-snorkel-metal
+#snorkel
+#snorkel-metal
 pyspark
 requests
+frozendict
+bs4
+keras
+tensorflow
+sklearn
+xgboost
