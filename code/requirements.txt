@@ -11,6 +11,8 @@ requests
 frozendict
 bs4
 keras
-tensorflow
+tensorflow-gpu
 sklearn
 xgboost
+seaborn
+gensim
