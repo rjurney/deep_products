@@ -16,3 +16,4 @@ sklearn
 xgboost
 seaborn
 gensim
+mxnet-cu100==1.4.1
