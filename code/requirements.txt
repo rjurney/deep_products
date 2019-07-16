@@ -17,3 +17,6 @@ xgboost
 seaborn
 gensim
 cupy-cuda100
+gpustat
+nltk
+tensorflow-hub
