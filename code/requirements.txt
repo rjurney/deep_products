@@ -4,14 +4,16 @@ plotly
 findspark
 iso8601
 lxml
-#snorkel
-#snorkel-metal
+# snorkel
+# snorkel-metal
 pyspark
 requests
 frozendict
 bs4
 keras
-tensorflow-gpu
+# tensorflow-gpu
+tf-nightly-gpu
+# tf-nightly-gpu-2.0-preview
 sklearn
 xgboost
 seaborn
@@ -20,3 +22,5 @@ cupy-cuda100
 gpustat
 nltk
 tensorflow-hub
+tqdm
+keras_metrics
