@@ -1,0 +1,245 @@
+import sys, os, re
+import json
+
+import boto3
+from bs4 import BeautifulSoup
+from pyspark.ml.feature import OneHotEncoderEstimator, StringIndexer
+from pyspark.sql import SparkSession, Row
+import pyspark.sql.functions as F
+import pyspark.sql.types as T
+
+
+spark = SparkSession.builder.appName('Deep Products - Sample JSON').getOrCreate()
+sc = spark.sparkContext
+
+#
+# Get 100K answered questions and their answers
+#
+
+posts = spark.read.parquet('s3://stackoverflow-events/06-24-2019/Posts.df.parquet')
+print('Total posts count: {:,}'.format(posts.count()))
+questions = posts.filter(posts._ParentId.isNull())\
+                 .filter(posts._AnswerCount > 0)
+print('Total questions count: {:,}'.format(questions.count()))
+
+# Write all questions to a Parquet file, then a 1 million record sample
+questions\
+    .write.mode('overwrite')\
+    .parquet('s3://stackoverflow-events/07-24-2019/Questions.Answered.parquet')
+questions = spark.read.parquet('s3://stackoverflow-events/07-24-2019/Questions.Answered.parquet')
+
+questions = questions.select('_Body', '_Tags')
+
+# Count the number of each tag
+all_tags = questions.rdd.flatMap(lambda x: re.sub('[<>]', '', x['_Tags']).split())
+tag_counts_df = all_tags.groupBy(lambda x: x)\
+    .map(lambda x: Row(tag=x[0], total=len(x[1])))\
+    .toDF()\
+    .select('tag', 'total')\
+    .orderBy(['total'], ascending=False)
+tag_counts_df.show(100)
+
+MAX_LEN = 100
+PAD_TOKEN = '__PAD__'
+
+
+def extract_text(x):
+    """Extract non-code text from posts (questions/answers)"""
+    doc = BeautifulSoup(x, 'lxml')
+    codes = doc.find_all('code')
+    [code.extract() if code else None for code in codes]
+    tokens = doc.text.split()
+    padded_tokens = [tokens[i] if len(tokens) > i else PAD_TOKEN for i in range(0, MAX_LEN)]
+    return padded_tokens
+
+
+for limit in [5000, 2000, 1000]:
+    remaining_tags = tag_counts_df.filter(tag_counts_df.total > limit)
+    total = remaining_tags.count()
+    print('Tags with > {:,} instances: {:,}'.format(limit, total))
+
+    top_tags = tag_counts_df.filter(tag_counts_df.total > limit)
+    valid_tags = top_tags.rdd.map(lambda x: x['tag']).collect()
+
+    questions_lists = questions.rdd.map(
+        lambda x: (
+            extract_text(x['_Body']),
+            re.sub('[<>]', ' ', x['_Tags']).split()
+        )
+    )
+
+    # 1. Only questions with at least one tag in our list
+    # 2. Drop tags not in our list
+    filtered_lists = questions_lists.filter(
+        lambda x: bool(set(x[1]) & set(valid_tags))            
+    )\
+        .map(lambda x: (x[0], [y for y in x[1] if y in valid_tags]))
+
+    q_count = filtered_lists.count()
+    print(
+        'We are left with {:,} questions containing tags with over {:,} instances'.format(
+            q_count,
+            limit
+        )
+    )
+
+    questions_tags = filtered_lists.map(lambda x: Row(_Body=x[0], _Tags=x[1])).toDF()
+
+    questions_tags.select('*', F.size('_Tags').alias('_Tag_Count')).orderBy(['_Tag_Count'], ascending=False).show()
+
+    # One-hot-encode the multilabel tags
+    enumerated_labels = enumerate(
+        sorted(
+            remaining_tags.rdd.groupBy(lambda x: 1)
+                              .flatMap(lambda x: [y.tag for y in x[1]]).collect()
+        )
+
+    )
+    tag_index = {x:i for i, x in enumerated_labels}
+    index_tag = {i:x for i, x in enumerated_labels}
+
+    def one_hot_encode(tag_list):
+        """PySpark can't one-hot-encode multilabel data, so we do it ourselves."""
+
+        one_hot_row = []
+        for i, label in enumerated_labels:
+            if index_tag[i] in tag_list:
+                one_hot_row.append(1)
+            else:
+                one_hot_row.append(0)
+        assert(len(one_hot_row) == len(enumerated_labels))
+        return one_hot_row
+
+    schema = T.StructType([
+        T.StructField("_Body", T.ArrayType(
+            T.StringType()
+        )),
+        T.StructField("_Tags", T.ArrayType(
+            T.IntegerType()
+        ))
+    ])
+
+    # Write the one-hot-encoded questions to S3 as a parquet file
+    one_hot_questions = questions_tags.rdd.map(
+        lambda x: Row(_Body=x._Body, _Tags=one_hot_encode(x._Tags))
+    )
+    one_hot_questions.take(10)
+    one_hot_df = sqlContext.createDataFrame(
+        one_hot_questions,
+        schema
+    )
+    one_hot_df.show()
+    one_hot_df.write.mode('overwrite').parquet('s3://stackoverflow-events/07-24-2019/Questions.Stratified.{}.parquet'.format(limit))
+
+    # Store the associated files to S3 as JSON
+    s3 = boto3.resource('s3')
+
+    obj = s3.Object('stackoverflow-events', '07-24-2019/tag_index.{}.json'.format(limit))
+    obj.put(Body=json.dumps(tag_index).encode())
+
+    obj = s3.Object('stackoverflow-events', '07-24-2019/index_tag.{}.json'.format(limit))
+    obj.put(Body=json.dumps(index_tag).encode())
+
+    obj = s3.Object('stackoverflow-events', '07-24-2019/sorted_all_tags.{}.json'.format(limit))
+    obj.put(Body=json.dumps(enumerated_labels).encode())
+
+
+# questions = questions.limit(1000000)
+# questions\
+#     .write.mode('overwrite')\
+#     .parquet('s3://stackoverflow-events/07-19-2019/Questions.Answered.1M.parquet')
+# sample_posts = spark.read.parquet('s3://stackoverflow-events/07-19-2019/Questions.Answered.1M.parquet')
+
+
+
+
+
+
+
+
+
+
+# Write the Q&A post IDs for later joins
+sample_qa_ids = sample_posts.select('_Id').withColumnRenamed('_Id', '_SId')
+sample_qa_ids\
+    .coalesce(1)\
+    .write.mode('overwrite')\
+    .json('s3://stackoverflow-events/06-24-2019/SampleIds.100K.Questions.jsonl.gz',
+          compression='gzip')
+sample_qa_ids = spark.read.json('s3://stackoverflow-events/06-24-2019/SampleIds.100K.Questions.jsonl.gz')
+
+
+#
+# Get the corresponding comments
+#
+comments = spark.read.parquet('s3://stackoverflow-events/06-24-2019/Comments.df.parquet')
+sample_comments = comments.join(sample_qa_ids,
+                                sample_qa_ids._SId == comments._PostId)
+print('Total sample comments: {:,}'.format(sample_comments.count()))
+sample_comments.drop('_SId')\
+    .write.mode('overwrite')\
+    .json('s3://stackoverflow-events/06-24-2019/Comments.100K.Questions.jsonl.gz',
+          compression='gzip')
+sample_comments = spark.read.json('s3://stackoverflow-events/06-24-2019/Comments.100K.Questions.jsonl.gz')
+
+#
+# Get users participating in those posts
+#
+users = spark.read.parquet('s3://stackoverflow-events/06-24-2019/Users.df.parquet')\
+             .alias('Users')
+sample_posts_users = sample_posts.join(users,
+                                       sample_posts._OwnerUserId == users._Id)
+print('Full users sample: {:,}'.format(sample_posts_users.count()))
+sample_users = sample_posts_users.select(['Users.' + c for c in users.columns]).distinct()
+print('Distinct users sample: {:,}'.format(sample_users.count()))
+sample_users.write.mode('overwrite')\
+            .json('s3://stackoverflow-events/06-24-2019/Users.100K.Questions.jsonl.gz',
+                  compression='gzip')
+sample_users = spark.read.json('s3://stackoverflow-events/06-24-2019/Users.100K.Questions.jsonl.gz')
+
+#
+# Get votes on those posts
+#
+votes = spark.read.parquet('s3://stackoverflow-events/06-24-2019/Votes.df.parquet')\
+             .alias('Votes')
+sample_posts_votes = votes.join(sample_qa_ids,
+                                sample_qa_ids._SId == votes._PostId)
+print('Full votes sample: {:,}'.format(sample_posts_votes.count()))
+sample_votes = sample_posts_votes.drop('_SId')
+sample_votes.write.mode('overwrite')\
+            .json('s3://stackoverflow-events/06-24-2019/Votes.100K.Questions.jsonl.gz',
+                  compression='gzip')
+sample_votes = spark.read.json('s3://stackoverflow-events/06-24-2019/Votes.100K.Questions.jsonl.gz')
+
+#
+# Get the corresponding post histories
+#
+post_history = spark.read.parquet('s3://stackoverflow-events/06-24-2019/PostHistory.df.parquet')\
+                    .alias('PostHistory')
+sample_post_history = post_history.join(sample_qa_ids,
+                                        sample_qa_ids._SId == post_history._PostId)
+print('Full post history sample: {:,}'.format(sample_post_history.count()))
+sample_post_history.drop('_SId')\
+    .write.mode('overwrite')\
+    .json('s3://stackoverflow-events/06-24-2019/PostHistory.100K.Questions.jsonl.gz',
+          compression='gzip')
+sample_post_history = spark.read.json('s3://stackoverflow-events/06-24-2019/PostHistory.100K.Questions.jsonl.gz')
+
+#
+# Get the corresponding badges
+#
+badges = spark.read.parquet('s3://stackoverflow-events/06-24-2019/Badges.df.parquet')
+user_ids = sample_users.select('_Id')\
+                       .withColumn('_UId', sample_users._Id)\
+                       .drop('_Id')\
+                       .distinct()
+sample_badges = badges.join(user_ids,
+                            badges._UserId == user_ids._UId).drop('_UId')
+print('Full badges sample: {:,}'.format(sample_badges.count()))
+sample_badges.write.mode('overwrite')\
+    .json('s3://stackoverflow-events/06-24-2019/Badges.100K.Questions.jsonl.gz',
+          compression='gzip')
+sample_badges = spark.read.json('s3://stackoverflow-events/06-24-2019/Badges.100K.Questions.jsonl.gz')
+
+# Leave tags alone, tiny
+# tags = spark.read.parquet('data/stackoverflow/parquet/Tags.df.parquet')
