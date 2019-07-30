@@ -7,6 +7,7 @@ from pyspark.ml.feature import OneHotEncoderEstimator, StringIndexer
 from pyspark.sql import SparkSession, Row
 import pyspark.sql.functions as F
 import pyspark.sql.types as T
+#from . import stratified
 
 
 spark = SparkSession.builder.appName('Deep Products - Sample JSON').getOrCreate()
@@ -16,28 +17,32 @@ sc = spark.sparkContext
 # Get 100K answered questions and their answers
 #
 
-posts = spark.read.parquet('s3://stackoverflow-events/06-24-2019/Posts.df.parquet')
-print('Total posts count: {:,}'.format(posts.count()))
-questions = posts.filter(posts._ParentId.isNull())\
-                 .filter(posts._AnswerCount > 0)
-print('Total questions count: {:,}'.format(questions.count()))
+# posts = spark.read.parquet('s3://stackoverflow-events/06-24-2019/Posts.df.parquet')
+# print('Total posts count: {:,}'.format(posts.count()))
+# questions = posts.filter(posts._ParentId.isNull())\
+#                  .filter(posts._AnswerCount > 0)
+# print('Total questions count: {:,}'.format(questions.count()))
 
-# Write all questions to a Parquet file, then a 1 million record sample
-questions\
-    .write.mode('overwrite')\
-    .parquet('s3://stackoverflow-events/07-24-2019/Questions.Answered.parquet')
+# # Write all questions to a Parquet file, then a 1 million record sample
+# questions\
+#     .write.mode('overwrite')\
+#     .parquet('s3://stackoverflow-events/07-24-2019/Questions.Answered.parquet')
 questions = spark.read.parquet('s3://stackoverflow-events/07-24-2019/Questions.Answered.parquet')
 
 questions = questions.select('_Body', '_Tags')
+questions.show()
 
 # Count the number of each tag
-all_tags = questions.rdd.flatMap(lambda x: re.sub('[<>]', '', x['_Tags']).split())
+all_tags = questions.rdd.flatMap(lambda x: re.sub('[<>]', ' ', x['_Tags']).split())
 tag_counts_df = all_tags.groupBy(lambda x: x)\
     .map(lambda x: Row(tag=x[0], total=len(x[1])))\
     .toDF()\
     .select('tag', 'total')\
     .orderBy(['total'], ascending=False)
 tag_counts_df.show(100)
+
+local_tag_counts = tag_counts_df.rdd.collect()
+tag_counts = {x.tag:x.total for x in local_tag_counts}
 
 MAX_LEN = 100
 PAD_TOKEN = '__PAD__'
@@ -53,7 +58,8 @@ def extract_text(x):
     return padded_tokens
 
 
-for limit in [5000, 2000, 1000]:
+for limit in [50000, 20000,]:  # 10000]:
+
     remaining_tags = tag_counts_df.filter(tag_counts_df.total > limit)
     total = remaining_tags.count()
     print('Tags with > {:,} instances: {:,}'.format(limit, total))
@@ -61,6 +67,7 @@ for limit in [5000, 2000, 1000]:
     top_tags = tag_counts_df.filter(tag_counts_df.total > limit)
     valid_tags = top_tags.rdd.map(lambda x: x['tag']).collect()
 
+    # Turn text of body and tags into lists of words
     questions_lists = questions.rdd.map(
         lambda x: (
             extract_text(x['_Body']),
@@ -84,17 +91,21 @@ for limit in [5000, 2000, 1000]:
     )
 
     questions_tags = filtered_lists.map(lambda x: Row(_Body=x[0], _Tags=x[1])).toDF()
-
+    questions_tags.show()
     questions_tags.select('*', F.size('_Tags').alias('_Tag_Count')).orderBy(['_Tag_Count'], ascending=False).show()
 
+    # Write the word/tag lists out
+    questions_tags.write.mode('overwrite').parquet('s3://stackoverflow-events/07-24-2019/Questions.Tags.{}.parquet'.format(limit))
+    questions_tags = spark.read.parquet('s3://stackoverflow-events/07-24-2019/Questions.Tags.{}.parquet'.format(limit))
+
     # One-hot-encode the multilabel tags
-    enumerated_labels = enumerate(
+    enumerated_labels = [z for z in enumerate(
         sorted(
             remaining_tags.rdd.groupBy(lambda x: 1)
-                              .flatMap(lambda x: [y.tag for y in x[1]]).collect()
+                                .flatMap(lambda x: [y.tag for y in x[1]])
+                                .collect()
         )
-
-    )
+    )]
     tag_index = {x:i for i, x in enumerated_labels}
     index_tag = {i:x for i, x in enumerated_labels}
 
@@ -110,6 +121,16 @@ for limit in [5000, 2000, 1000]:
         assert(len(one_hot_row) == len(enumerated_labels))
         return one_hot_row
 
+    # Write the one-hot-encoded questions to S3 as a parquet file
+    one_hot_questions = questions_tags.rdd.map(
+        lambda x: Row(_Body=x._Body, _Tags=one_hot_encode(x._Tags))
+    )
+    one_hot_questions.take(10)
+
+    # Verify we have multiple labels present
+    one_hot_questions.sortBy(lambda x: sum(x._Tags), ascending=False).take(10)
+
+    # Create a DataFrame for persisting as Parquet format
     schema = T.StructType([
         T.StructField("_Body", T.ArrayType(
             T.StringType()
@@ -119,29 +140,82 @@ for limit in [5000, 2000, 1000]:
         ))
     ])
 
-    # Write the one-hot-encoded questions to S3 as a parquet file
-    one_hot_questions = questions_tags.rdd.map(
-        lambda x: Row(_Body=x._Body, _Tags=one_hot_encode(x._Tags))
-    )
-    one_hot_questions.take(10)
     one_hot_df = sqlContext.createDataFrame(
         one_hot_questions,
         schema
     )
     one_hot_df.show()
     one_hot_df.write.mode('overwrite').parquet('s3://stackoverflow-events/07-24-2019/Questions.Stratified.{}.parquet'.format(limit))
+    one_hot_df = spark.read.parquet('s3://stackoverflow-events/07-24-2019/Questions.Stratified.{}.parquet'.format(limit))
 
-    # Store the associated files to S3 as JSON
-    s3 = boto3.resource('s3')
+    def create_schema(one_row):
+        schema_list = [
+            T.StructField("_Body", T.ArrayType(
+                T.StringType()
+            )),
+        ]
 
-    obj = s3.Object('stackoverflow-events', '07-24-2019/tag_index.{}.json'.format(limit))
-    obj.put(Body=json.dumps(tag_index).encode())
+        for i, val in list(enumerate(one_row._Tags))[0:5]:
+            schema_list.append(
+                T.StructField(
+                    'label_{}'.format(i),
+                    T.IntegerType()
+                )
+            )
 
-    obj = s3.Object('stackoverflow-events', '07-24-2019/index_tag.{}.json'.format(limit))
-    obj.put(Body=json.dumps(index_tag).encode())
+        return T.StructType(schema_list)
 
-    obj = s3.Object('stackoverflow-events', '07-24-2019/sorted_all_tags.{}.json'.format(limit))
-    obj.put(Body=json.dumps(enumerated_labels).encode())
+    one_row = one_hot_df.take(1)[0]
+    schema = create_schema(one_row)
+
+    def create_row_columns(x):
+        """Create a dict keyed with dynamic args to use to create a Row for this record"""
+        args = {'label_{}'.format(i):val for i, val in list(enumerate(x._Tags))}
+        args['_Body'] = x._Body
+        return Row(**args)
+
+    output_rdd = sc.emptyRDD()
+    for i in range(0, len(one_row._Tags)):
+        positive_examples = one_hot_df.rdd.filter(lambda x: x._Tags[i])
+        example_count = positive_examples.count()
+        ratio = min(1.0, limit / example_count)
+        sample_ratio = max(0.0, ratio)
+        positive_examples = positive_examples.sample(False, sample_ratio, seed=1337).map(create_row_columns)
+        sample_count = positive_examples.count()
+        print('Column {:,} had {:,} positive examples, sampled to {:,}'.format(i, example_count, sample_count))
+        output_rdd = output_rdd.union(positive_examples)
+
+    output_rdd.take(5)
+    output_df = sqlContext.createDataFrame(
+        output_rdd,
+        schema
+    )
+    output_df.show()
+    output_df.write.mode('overwrite').parquet('s3://stackoverflow-events/07-24-2019/Questions.Stratified.2.{}.parquet'.format(limit))
+
+#
+# Store the associated files to S3 as JSON
+#
+s3 = boto3.resource('s3')
+
+obj = s3.Object('stackoverflow-events', '07-24-2019/tag_index.{}.json'.format(limit))
+obj.put(Body=json.dumps(tag_index).encode())
+
+obj = s3.Object('stackoverflow-events', '07-24-2019/index_tag.{}.json'.format(limit))
+obj.put(Body=json.dumps(index_tag).encode())
+
+obj = s3.Object('stackoverflow-events', '07-24-2019/sorted_all_tags.{}.json'.format(limit))
+obj.put(Body=json.dumps(enumerated_labels).encode())
+
+    # Now create a stratified sample where the labels are as even as possible
+    # broadcast_tag_index = sc.broadcast(tag_index)
+    # parsing_function = stratified.get_parsing_function(broadcast_tag_index)
+
+
+
+
+
+
 
 
 # questions = questions.limit(1000000)
@@ -149,13 +223,6 @@ for limit in [5000, 2000, 1000]:
 #     .write.mode('overwrite')\
 #     .parquet('s3://stackoverflow-events/07-19-2019/Questions.Answered.1M.parquet')
 # sample_posts = spark.read.parquet('s3://stackoverflow-events/07-19-2019/Questions.Answered.1M.parquet')
-
-
-
-
-
-
-
 
 
 
