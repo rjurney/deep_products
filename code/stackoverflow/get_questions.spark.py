@@ -12,9 +12,8 @@ spark = SparkSession.builder.appName('Deep Products - Sample JSON').getOrCreate(
 sc = spark.sparkContext
 
 #
-# Get 100K answered questions and their answers
+# Get answered questions and their answers
 #
-
 posts = spark.read.parquet('s3://stackoverflow-events/06-24-2019/Posts.df.parquet')
 print('Total posts count: {:,}'.format(posts.count()))
 questions = posts.filter(posts._ParentId.isNull())\
