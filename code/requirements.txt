@@ -25,3 +25,4 @@ tensorflow-hub
 tqdm
 keras_metrics
 pyarrow
+s3fs
