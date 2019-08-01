@@ -3,7 +3,6 @@ import json
 
 import boto3
 from bs4 import BeautifulSoup
-from pyspark.ml.feature import OneHotEncoderEstimator, StringIndexer
 from pyspark.sql import SparkSession, Row
 import pyspark.sql.functions as F
 import pyspark.sql.types as T
