@@ -7,7 +7,6 @@ from pyspark.ml.feature import OneHotEncoderEstimator, StringIndexer
 from pyspark.sql import SparkSession, Row
 import pyspark.sql.functions as F
 import pyspark.sql.types as T
-#from . import stratified
 
 
 spark = SparkSession.builder.appName('Deep Products - Sample JSON').getOrCreate()
@@ -17,29 +16,29 @@ sc = spark.sparkContext
 # Get 100K answered questions and their answers
 #
 
-# posts = spark.read.parquet('s3://stackoverflow-events/06-24-2019/Posts.df.parquet')
-# print('Total posts count: {:,}'.format(posts.count()))
-# questions = posts.filter(posts._ParentId.isNull())\
-#                  .filter(posts._AnswerCount > 0)
-# print('Total questions count: {:,}'.format(questions.count()))
+posts = spark.read.parquet('s3://stackoverflow-events/06-24-2019/Posts.df.parquet')
+print('Total posts count: {:,}'.format(posts.count()))
+questions = posts.filter(posts._ParentId.isNull())\
+                 .filter(posts._AnswerCount > 0)
+print('Total questions count: {:,}'.format(questions.count()))
 
-# # Write all questions to a Parquet file, then a 1 million record sample
-# questions\
-#     .write.mode('overwrite')\
-#     .parquet('s3://stackoverflow-events/07-24-2019/Questions.Answered.parquet')
+# Write all questions to a Parquet file, then a 1 million record sample
+questions\
+    .write.mode('overwrite')\
+    .parquet('s3://stackoverflow-events/07-24-2019/Questions.Answered.parquet')
 questions = spark.read.parquet('s3://stackoverflow-events/07-24-2019/Questions.Answered.parquet')
 
 questions = questions.select('_Body', '_Tags')
 questions.show()
 
 # Count the number of each tag
-# all_tags = questions.rdd.flatMap(lambda x: re.sub('[<>]', ' ', x['_Tags']).split())
-# tag_counts_df = all_tags.groupBy(lambda x: x)\
-#     .map(lambda x: Row(tag=x[0], total=len(x[1])))\
-#     .toDF()\
-#     .select('tag', 'total')\
-#     .orderBy(['total'], ascending=False)
-# tag_counts_df.write.mode('overwrite').parquet('s3://stackoverflow-events/07-24-2019/Questions.TagCounts.{}.parquet'.format(limit))
+all_tags = questions.rdd.flatMap(lambda x: re.sub('[<>]', ' ', x['_Tags']).split())
+tag_counts_df = all_tags.groupBy(lambda x: x)\
+    .map(lambda x: Row(tag=x[0], total=len(x[1])))\
+    .toDF()\
+    .select('tag', 'total')\
+    .orderBy(['total'], ascending=False)
+tag_counts_df.write.mode('overwrite').parquet('s3://stackoverflow-events/07-24-2019/Questions.TagCounts.{}.parquet'.format(limit))
 tag_counts_df = spark.read.parquet('s3://stackoverflow-events/07-24-2019/Questions.TagCounts.{}.parquet'.format(limit))
 tag_counts_df.show(100)
 
