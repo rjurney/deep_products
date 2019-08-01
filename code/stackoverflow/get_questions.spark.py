@@ -20,7 +20,7 @@ questions = posts.filter(posts._ParentId.isNull())\
                  .filter(posts._AnswerCount > 0)
 print('Total questions count: {:,}'.format(questions.count()))
 
-# Write all questions to a Parquet file, then a 1 million record sample
+# Write all questions to a Parquet file, then trim fields
 questions\
     .write.mode('overwrite')\
     .parquet('s3://stackoverflow-events/07-24-2019/Questions.Answered.parquet')
