@@ -41,3 +41,10 @@ history_df = spark.read.format('xml').options(rowTag='row')\
                   .load('s3://stackoverflow-events/06-24-2019/PostHistory.xml.lzo')
 history_df.write.mode('overwrite')\
           .parquet('s3://stackoverflow-events/06-24-2019/PostHistory.df.parquet')
+
+
+
+posts_df = spark.read.format('xml').options(rowTag='row').options(rootTag='posts')\
+                .load('data/stackoverflow/stackoverflow/Posts.xml.lzo')
+posts_df.write.mode('overwrite')\
+        .parquet('data/stackoverflow/stackoverflow/Posts.df.parquet')
