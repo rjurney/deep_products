@@ -8,8 +8,8 @@ import pyspark.sql.functions as F
 import pyspark.sql.types as T
 
 
-# spark = SparkSession.builder.appName('Deep Products - Sample JSON').getOrCreate()
-# sc = spark.sparkContext
+spark = SparkSession.builder.appName('Deep Products - Sample JSON').getOrCreate()
+sc = spark.sparkContext
 
 #
 # Get answered questions and not their answers
@@ -17,17 +17,25 @@ import pyspark.sql.types as T
 posts = spark.read.parquet('s3://stackoverflow-events/08-05-2019/Posts.df.parquet')
 print('Total posts count: {:,}'.format(posts.count()))
 questions = posts.filter(posts._ParentId.isNull())\
-                 .filter(posts._AnswerCount > 0)
+                 .filter(posts._AnswerCount > 0)\
+                 .filter(posts._Score > 5)
 print('Total questions count: {:,}'.format(questions.count()))
+
+questions = questions.select(
+    F.concat(
+        F.col("_Title"),
+        F.lit(" "),
+        F.col("_Body")
+    ).alias('_Body'),
+    '_Tags'
+)
+questions.show()
 
 # Write all questions to a Parquet file, then trim fields
 questions\
     .write.mode('overwrite')\
     .parquet('s3://stackoverflow-events/08-05-2019/Questions.Answered.parquet')
 questions = spark.read.parquet('s3://stackoverflow-events/08-05-2019/Questions.Answered.parquet')
-
-questions = questions.select('_Body', '_Tags')
-questions.show()
 
 # Count the number of each tag
 all_tags = questions.rdd.flatMap(lambda x: re.sub('[<>]', ' ', x['_Tags']).split())
@@ -46,25 +54,25 @@ def extract_text(x):
     return padded_tokens
 
 
-for limit in [50000, 20000, 10000]:
+for tag_limit, stratify_limit in [(50000, 20000), (20000, 10000), (10000, 10000), (5000, 5000)]: 
 
     tag_counts_df = all_tags.groupBy(lambda x: x)\
         .map(lambda x: Row(tag=x[0], total=len(x[1])))\
         .toDF()\
         .select('tag', 'total')\
         .orderBy(['total'], ascending=False)
-    tag_counts_df.write.mode('overwrite').parquet('s3://stackoverflow-events/08-05-2019/Questions.TagCounts.{}.parquet'.format(limit))
-    tag_counts_df = spark.read.parquet('s3://stackoverflow-events/08-05-2019/Questions.TagCounts.{}.parquet'.format(limit))
+    tag_counts_df.write.mode('overwrite').parquet('s3://stackoverflow-events/08-05-2019/Questions.TagCounts.{}.parquet'.format(tag_limit))
+    tag_counts_df = spark.read.parquet('s3://stackoverflow-events/08-05-2019/Questions.TagCounts.{}.parquet'.format(tag_limit))
     tag_counts_df.show(100)
 
     local_tag_counts = tag_counts_df.rdd.collect()
     tag_counts = {x.tag:x.total for x in local_tag_counts}
 
-    remaining_tags = tag_counts_df.filter(tag_counts_df.total > limit)
+    remaining_tags = tag_counts_df.filter(tag_counts_df.total > tag_limit)
     total = remaining_tags.count()
-    print('Tags with > {:,} instances: {:,}'.format(limit, total))
+    print('Tags with > {:,} instances: {:,}'.format(tag_limit, total))
 
-    top_tags = tag_counts_df.filter(tag_counts_df.total > limit)
+    top_tags = tag_counts_df.filter(tag_counts_df.total > tag_limit)
     valid_tags = top_tags.rdd.map(lambda x: x['tag']).collect()
 
     # Turn text of body and tags into lists of words
@@ -86,7 +94,7 @@ for limit in [50000, 20000, 10000]:
     print(
         'We are left with {:,} questions containing tags with over {:,} instances'.format(
             q_count,
-            limit
+            tag_limit
         )
     )
 
@@ -101,8 +109,8 @@ for limit in [50000, 20000, 10000]:
     ).show()
 
     # Write the word/tag lists out
-    questions_tags.write.mode('overwrite').parquet('s3://stackoverflow-events/08-05-2019/Questions.Tags.{}.parquet'.format(limit))
-    questions_tags = spark.read.parquet('s3://stackoverflow-events/08-05-2019/Questions.Tags.{}.parquet'.format(limit))
+    questions_tags.write.mode('overwrite').parquet('s3://stackoverflow-events/08-05-2019/Questions.Tags.{}.parquet'.format(tag_limit))
+    questions_tags = spark.read.parquet('s3://stackoverflow-events/08-05-2019/Questions.Tags.{}.parquet'.format(tag_limit))
 
     # One-hot-encode the multilabel tags
     enumerated_labels = [z for z in enumerate(
@@ -146,13 +154,13 @@ for limit in [50000, 20000, 10000]:
         ))
     ])
 
-    one_hot_df = sqlContext.createDataFrame(
+    one_hot_df = spark.createDataFrame(
         one_hot_questions,
         schema
     )
     one_hot_df.show()
-    one_hot_df.write.mode('overwrite').parquet('s3://stackoverflow-events/08-05-2019/Questions.Stratified.{}.parquet'.format(limit))
-    one_hot_df = spark.read.parquet('s3://stackoverflow-events/08-05-2019/Questions.Stratified.{}.parquet'.format(limit))
+    one_hot_df.write.mode('overwrite').parquet('s3://stackoverflow-events/08-05-2019/Questions.Stratified.{}.parquet'.format(tag_limit))
+    one_hot_df = spark.read.parquet('s3://stackoverflow-events/08-05-2019/Questions.Stratified.{}.parquet'.format(tag_limit))
 
     def create_schema(one_row):
         schema_list = [
@@ -180,8 +188,6 @@ for limit in [50000, 20000, 10000]:
         args['_Body'] = x._Body
         return Row(**args)
 
-    stratify_limit = 10000
-
     output_rdd = sc.emptyRDD()
     for i in range(0, len(one_row._Tags)):
         positive_examples = one_hot_df.rdd.filter(lambda x: x._Tags[i])
@@ -196,33 +202,36 @@ for limit in [50000, 20000, 10000]:
                 example_count, sample_count
             )
         )
-        output_df = sqlContext.createDataFrame(
+        output_df = spark.createDataFrame(
             positive_examples,
             schema
         )
         output_df.show()
-        output_df.write.mode('overwrite').json('s3://stackoverflow-events/08-05-2019/Questions.Stratified.{}.{}.jsonl'.format(limit, i))
+        output_df.write.mode('overwrite').json('s3://stackoverflow-events/08-05-2019/Questions.Stratified.{}.{}.jsonl'.format(tag_limit, i))
 
     #
     # Store the associated files to S3 as JSON
     #
     s3 = boto3.resource('s3')
 
-    obj = s3.Object('stackoverflow-events', '08-05-2019/tag_index.{}.json'.format(limit))
+    obj = s3.Object('stackoverflow-events', '08-05-2019/tag_index.{}.json'.format(tag_limit))
     obj.put(Body=json.dumps(tag_index).encode())
 
-    obj = s3.Object('stackoverflow-events', '08-05-2019/index_tag.{}.json'.format(limit))
+    obj = s3.Object('stackoverflow-events', '08-05-2019/index_tag.{}.json'.format(tag_limit))
     obj.put(Body=json.dumps(index_tag).encode())
 
-    obj = s3.Object('stackoverflow-events', '08-05-2019/sorted_all_tags.{}.json'.format(limit))
+    obj = s3.Object('stackoverflow-events', '08-05-2019/sorted_all_tags.{}.json'.format(tag_limit))
     obj.put(Body=json.dumps(enumerated_labels).encode())
 
+    # Count the labels
+    label_count = len(enumerated_labels)
+
     # Evaluate how skewed the sample is
-    stratified_sample = spark.read.json('s3://stackoverflow-events/08-05-2019/Questions.Stratified.{}.*.jsonl'.format(limit))
+    stratified_sample = spark.read.json('s3://stackoverflow-events/08-05-2019/Questions.Stratified.{}.*.jsonl'.format(tag_limit))
     stratified_sample.registerTempTable('stratified_sample')
 
     label_counts = {}
-    for i in range(0, 100):
+    for i in range(0, label_count):
         count_df = spark.sql('SELECT label_{}, COUNT(*) as total FROM stratified_sample GROUP BY label_{}'.format(i, i))
         rows = count_df.rdd.take(2)
         neg_count = getattr(rows[0], 'total')
@@ -230,124 +239,81 @@ for limit in [50000, 20000, 10000]:
         label_counts[i] = [neg_count, pos_count]
 
     # Put the label counts on S3
-    obj = s3.Object('stackoverflow-events', '08-05-2019/label_counts.{}.json'.format(limit))
+    obj = s3.Object('stackoverflow-events', '08-05-2019/label_counts.{}.json'.format(tag_limit))
     obj.put(Body=json.dumps(label_counts).encode())
 
     # Write the final stratified sample to Parquet format
-    stratified_sample.write.mode('overwrite').parquet('s3://stackoverflow-events/08-05-2019/Questions.Stratified.Final.{}.parquet'.format(limit))
+    stratified_sample.write.mode('overwrite').parquet('s3://stackoverflow-events/08-05-2019/Questions.Stratified.Final.{}.parquet'.format(tag_limit))
+    stratified_sample = spark.read.parquet('s3://stackoverflow-events/08-05-2019/Questions.Stratified.Final.{}.parquet'.format(tag_limit))
 
-# Compute a report on the dupes in the data
-for limit in [50000, 20000, 10000]:
-    data = spark.read.parquet('s3://stackoverflow-events/08-05-2019/Questions.Stratified.Final.{}.parquet'.format(limit))
-    data.registerTempTable("data")
-    raw_total = data.count()
-    df = spark.sql(
-        """SELECT COUNT(*) as total FROM (SELECT DISTINCT {} FROM data)""".format(
-            ', '.join(data.columns[1:])[0:-2]
+    # Blow away the old stratified sample table
+    spark.catalog.dropTempView("stratified_sample")
+
+    # Register a new table to compute duplicate ratios
+    stratified_sample.registerTempTable("final_stratified_sample")
+    raw_total = stratified_sample.count()
+    report_df = spark.sql(
+        """SELECT COUNT(*) as total FROM (SELECT DISTINCT {} FROM final_stratified_sample)""".format(
+            ', '.join(stratified_sample.columns[1:])
         )
     )
-    unique_total = df.rdd.first().total
+    unique_total = report_df.rdd.first().total
     dupe_total = raw_total - unique_total
-    print('Limit {} has {} total, {} unique and {} duplicate labelsets'.format(
+    dupe_ratio = dupe_total * 1.0 / raw_total * 1.0
+
+    # Print and store a report on duplicates in the sample
+    print('Limit {:,} has {:,} total, {:,} unique and {:,} duplicate labelsets with a dupe ratio of {:,}'.format(
+        tag_limit,
         raw_total,
         unique_total,
-        dupe_total
+        dupe_total,
+        dupe_ratio
     ))
 
-# Compute the remaining tag counts
-# for limit in [50000, 20000, 10000]:
-#     questions_tags = spark.read.parquet('s3://stackoverflow-events/08-05-2019/Questions.Tags.{}.parquet'.format(limit))
+    one_hot_original = one_hot_df.rdd.map(create_row_columns)
+    original_df = spark.createDataFrame(
+        one_hot_original,
+        schema
+    )
+    original_df.registerTempTable("original_data")
 
+    original_raw_total = original_df.count()
+    original_report_df = spark.sql(
+        """SELECT COUNT(*) as total FROM (SELECT DISTINCT {} FROM original_data)""".format(
+            ', '.join(original_df.columns[1:])
+        )
+    )
+    original_unique_total = original_report_df.rdd.first().total
+    original_dupe_total = original_raw_total - unique_total
+    original_dupe_ratio = original_dupe_total * 1.0 / original_raw_total * 1.0
 
-# # questions = questions.limit(1000000)
-# # questions\
-# #     .write.mode('overwrite')\
-# #     .parquet('s3://stackoverflow-events/07-19-2019/Questions.Answered.1M.parquet')
-# # sample_posts = spark.read.parquet('s3://stackoverflow-events/07-19-2019/Questions.Answered.1M.parquet')
+    # Print and store a report on duplicates in the original
+    print('Limit {:,} originally had {:,} total, {:,} unique and {:,} duplicate labelsets with a dupe ratio of {:,}'.format(
+        tag_limit,
+        original_raw_total,
+        original_unique_total,
+        original_dupe_total,
+        original_dupe_ratio
+    ))
 
+    dupe_ratio_change = original_dupe_ratio - dupe_ratio
+    dupe_ratio_change_pct = dupe_ratio / original_dupe_ratio
 
+    print('Dupe ratio change raw/pct: {:,}/{:,}'.format(dupe_ratio_change, dupe_ratio_change_pct))
 
-# # Write the Q&A post IDs for later joins
-# sample_qa_ids = sample_posts.select('_Id').withColumnRenamed('_Id', '_SId')
-# sample_qa_ids\
-#     .coalesce(1)\
-#     .write.mode('overwrite')\
-#     .json('s3://stackoverflow-events/06-24-2019/SampleIds.100K.Questions.jsonl.gz',
-#           compression='gzip')
-# sample_qa_ids = spark.read.json('s3://stackoverflow-events/06-24-2019/SampleIds.100K.Questions.jsonl.gz')
+    report_data = {
+        'raw_total': raw_total,
+        'unique_total': unique_total,
+        'dupe_total': dupe_total,
+        'dupe_ratio': dupe_ratio,
+        'original_raw_total': original_raw_total,
+        'original_unique_total': original_unique_total,
+        'original_dupe_total': original_dupe_total,
+        'original_dupe_ratio': original_dupe_ratio,
+        'dupe_ratio_change': dupe_ratio_change,
+        'dupe_ratio_change_pct': dupe_ratio_change_pct
+    }
+    obj = s3.Object('stackoverflow-events', '08-05-2019/final_report.{}.json'.format(tag_limit))
+    obj.put(Body=json.dumps(report_data).encode())
 
-
-# #
-# # Get the corresponding comments
-# #
-# comments = spark.read.parquet('s3://stackoverflow-events/06-24-2019/Comments.df.parquet')
-# sample_comments = comments.join(sample_qa_ids,
-#                                 sample_qa_ids._SId == comments._PostId)
-# print('Total sample comments: {:,}'.format(sample_comments.count()))
-# sample_comments.drop('_SId')\
-#     .write.mode('overwrite')\
-#     .json('s3://stackoverflow-events/06-24-2019/Comments.100K.Questions.jsonl.gz',
-#           compression='gzip')
-# sample_comments = spark.read.json('s3://stackoverflow-events/06-24-2019/Comments.100K.Questions.jsonl.gz')
-
-# #
-# # Get users participating in those posts
-# #
-# users = spark.read.parquet('s3://stackoverflow-events/06-24-2019/Users.df.parquet')\
-#              .alias('Users')
-# sample_posts_users = sample_posts.join(users,
-#                                        sample_posts._OwnerUserId == users._Id)
-# print('Full users sample: {:,}'.format(sample_posts_users.count()))
-# sample_users = sample_posts_users.select(['Users.' + c for c in users.columns]).distinct()
-# print('Distinct users sample: {:,}'.format(sample_users.count()))
-# sample_users.write.mode('overwrite')\
-#             .json('s3://stackoverflow-events/06-24-2019/Users.100K.Questions.jsonl.gz',
-#                   compression='gzip')
-# sample_users = spark.read.json('s3://stackoverflow-events/06-24-2019/Users.100K.Questions.jsonl.gz')
-
-# #
-# # Get votes on those posts
-# #
-# votes = spark.read.parquet('s3://stackoverflow-events/06-24-2019/Votes.df.parquet')\
-#              .alias('Votes')
-# sample_posts_votes = votes.join(sample_qa_ids,
-#                                 sample_qa_ids._SId == votes._PostId)
-# print('Full votes sample: {:,}'.format(sample_posts_votes.count()))
-# sample_votes = sample_posts_votes.drop('_SId')
-# sample_votes.write.mode('overwrite')\
-#             .json('s3://stackoverflow-events/06-24-2019/Votes.100K.Questions.jsonl.gz',
-#                   compression='gzip')
-# sample_votes = spark.read.json('s3://stackoverflow-events/06-24-2019/Votes.100K.Questions.jsonl.gz')
-
-# #
-# # Get the corresponding post histories
-# #
-# post_history = spark.read.parquet('s3://stackoverflow-events/06-24-2019/PostHistory.df.parquet')\
-#                     .alias('PostHistory')
-# sample_post_history = post_history.join(sample_qa_ids,
-#                                         sample_qa_ids._SId == post_history._PostId)
-# print('Full post history sample: {:,}'.format(sample_post_history.count()))
-# sample_post_history.drop('_SId')\
-#     .write.mode('overwrite')\
-#     .json('s3://stackoverflow-events/06-24-2019/PostHistory.100K.Questions.jsonl.gz',
-#           compression='gzip')
-# sample_post_history = spark.read.json('s3://stackoverflow-events/06-24-2019/PostHistory.100K.Questions.jsonl.gz')
-
-# #
-# # Get the corresponding badges
-# #
-# badges = spark.read.parquet('s3://stackoverflow-events/06-24-2019/Badges.df.parquet')
-# user_ids = sample_users.select('_Id')\
-#                        .withColumn('_UId', sample_users._Id)\
-#                        .drop('_Id')\
-#                        .distinct()
-# sample_badges = badges.join(user_ids,
-#                             badges._UserId == user_ids._UId).drop('_UId')
-# print('Full badges sample: {:,}'.format(sample_badges.count()))
-# sample_badges.write.mode('overwrite')\
-#     .json('s3://stackoverflow-events/06-24-2019/Badges.100K.Questions.jsonl.gz',
-#           compression='gzip')
-# sample_badges = spark.read.json('s3://stackoverflow-events/06-24-2019/Badges.100K.Questions.jsonl.gz')
-
-# # Leave tags alone, tiny
-# # tags = spark.read.parquet('data/stackoverflow/parquet/Tags.df.parquet')
+# The Big Finish(TM)!
