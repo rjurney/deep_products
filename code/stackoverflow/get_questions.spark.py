@@ -65,7 +65,7 @@ def extract_text(x):
     return padded_tokens
 
 
-for tag_limit, stratify_limit in [(50000, 20000)]:  #, (20000, 10000), (10000, 10000), (5000, 5000)]: 
+for tag_limit, stratify_limit in [(20000, 10000), (10000, 10000), (5000, 5000)]:  # (50000, 20000)]:
 
     tag_counts_df = all_tags.groupBy(lambda x: x)\
         .map(lambda x: Row(tag=x[0], total=len(x[1])))\
