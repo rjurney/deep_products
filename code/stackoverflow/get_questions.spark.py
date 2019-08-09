@@ -7,6 +7,15 @@ from pyspark.sql import SparkSession, Row
 import pyspark.sql.functions as F
 import pyspark.sql.types as T
 
+# Remove stopwords
+import nltk
+nltk.download('punkt')
+nltk.download('stopwords')
+from nltk.tokenize import RegexpTokenizer
+from nltk.tokenize import word_tokenize
+from nltk.corpus import stopwords
+stop_words = set(stopwords.words('english'))
+
 
 spark = SparkSession.builder.appName('Deep Products - Sample JSON').getOrCreate()
 sc = spark.sparkContext
@@ -18,7 +27,7 @@ posts = spark.read.parquet('s3://stackoverflow-events/08-05-2019/Posts.df.parque
 print('Total posts count: {:,}'.format(posts.count()))
 questions = posts.filter(posts._ParentId.isNull())\
                  .filter(posts._AnswerCount > 0)\
-                 .filter(posts._Score > 5)
+                 .filter(posts._Score > 1)
 print('Total questions count: {:,}'.format(questions.count()))
 
 questions = questions.select(
@@ -42,19 +51,21 @@ all_tags = questions.rdd.flatMap(lambda x: re.sub('[<>]', ' ', x['_Tags']).split
 
 MAX_LEN = 100
 PAD_TOKEN = '__PAD__'
-
+tokenizer = RegexpTokenizer(r'\w+')
 
 def extract_text(x):
     """Extract non-code text from posts (questions/answers)"""
     doc = BeautifulSoup(x, 'lxml')
     codes = doc.find_all('code')
     [code.extract() if code else None for code in codes]
-    tokens = doc.text.split()
+    text = re.sub(r'http\S+', ' ', doc.text)
+    tokens = [x for x in tokenizer.tokenize(text) if x not in stop_words]
+
     padded_tokens = [tokens[i] if len(tokens) > i else PAD_TOKEN for i in range(0, MAX_LEN)]
     return padded_tokens
 
 
-for tag_limit, stratify_limit in [(50000, 20000), (20000, 10000), (10000, 10000), (5000, 5000)]: 
+for tag_limit, stratify_limit in [(50000, 20000)]:  #, (20000, 10000), (10000, 10000), (5000, 5000)]: 
 
     tag_counts_df = all_tags.groupBy(lambda x: x)\
         .map(lambda x: Row(tag=x[0], total=len(x[1])))\
@@ -123,7 +134,7 @@ for tag_limit, stratify_limit in [(50000, 20000), (20000, 10000), (10000, 10000)
     tag_index = {x:i for i, x in enumerated_labels}
     index_tag = {i:x for i, x in enumerated_labels}
 
-    def one_hot_encode(tag_list):
+    def one_hot_encode(tag_list, enumerated_labels):
         """PySpark can't one-hot-encode multilabel data, so we do it ourselves."""
 
         one_hot_row = []
@@ -137,7 +148,7 @@ for tag_limit, stratify_limit in [(50000, 20000), (20000, 10000), (10000, 10000)
 
     # Write the one-hot-encoded questions to S3 as a parquet file
     one_hot_questions = questions_tags.rdd.map(
-        lambda x: Row(_Body=x._Body, _Tags=one_hot_encode(x._Tags))
+        lambda x: Row(_Body=x._Body, _Tags=one_hot_encode(x._Tags, enumerated_labels))
     )
     one_hot_questions.take(10)
 
