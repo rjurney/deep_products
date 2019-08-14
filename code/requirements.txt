@@ -26,3 +26,5 @@ tqdm
 keras_metrics
 pyarrow
 s3fs
+texttable
+imbalanced-learn
