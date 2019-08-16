@@ -4,15 +4,14 @@ plotly
 findspark
 iso8601
 lxml
-# snorkel
+snorkel
 # snorkel-metal
 pyspark
 requests
 frozendict
 bs4
-keras
 # tensorflow-gpu
-tf-nightly-gpu
+# tf-nightly-gpu
 # tf-nightly-gpu-2.0-preview
 sklearn
 xgboost
@@ -27,4 +26,5 @@ keras_metrics
 pyarrow
 s3fs
 texttable
-imbalanced-learn
+# imbalanced-learn
+jupyter
