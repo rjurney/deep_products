@@ -12,7 +12,7 @@ frozendict
 bs4
 # tensorflow-gpu
 # tf-nightly-gpu
-# tf-nightly-gpu-2.0-preview
+tf-nightly-gpu-2.0-preview
 sklearn
 xgboost
 seaborn
@@ -20,7 +20,7 @@ gensim
 cupy-cuda100
 gpustat
 nltk
-tensorflow-hub
+tensorflow_hub==0.5.0
 tqdm
 keras_metrics
 pyarrow
