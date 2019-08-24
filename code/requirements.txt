@@ -26,6 +26,6 @@ keras_metrics
 pyarrow
 s3fs
 texttable
-imbalanced-learn
 jupyter
 keras-rectified-adam
+wandb
