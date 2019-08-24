@@ -12,7 +12,8 @@ frozendict
 bs4
 # tensorflow-gpu
 # tf-nightly-gpu
-tf-nightly-gpu-2.0-preview
+# tf-nightly-gpu-2.0-preview
+tensorflow-gpu==2.0.0-beta
 sklearn
 xgboost
 seaborn
