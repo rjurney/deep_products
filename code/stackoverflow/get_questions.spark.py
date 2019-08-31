@@ -75,6 +75,8 @@ for tag_limit, stratify_limit in [
         (1000, 1000)
     ]:
 
+    print(f'\n\nStarting run for tag limit {tag_limit:,} and sample size {stratify_limit:,}\n\n')
+
     tag_counts_df = all_tags.groupBy(lambda x: x)\
         .map(lambda x: Row(tag=x[0], total=len(x[1])))\
         .toDF()\
@@ -89,7 +91,8 @@ for tag_limit, stratify_limit in [
 
     remaining_tags = tag_counts_df.filter(tag_counts_df.total > tag_limit)
     total = remaining_tags.count()
-    print('Tags with > {:,} instances: {:,}'.format(tag_limit, total))
+
+    print(f'\n\nNumber of tags with > {tag_limit:,} instances: {total:,}\n\n')
 
     top_tags = tag_counts_df.filter(tag_counts_df.total > tag_limit)
     valid_tags = top_tags.rdd.map(lambda x: x['tag']).collect()
@@ -110,12 +113,7 @@ for tag_limit, stratify_limit in [
         .map(lambda x: (x[0], [y for y in x[1] if y in valid_tags]))
 
     q_count = filtered_lists.count()
-    print(
-        'We are left with {:,} questions containing tags with over {:,} instances'.format(
-            q_count,
-            tag_limit
-        )
-    )
+    print(f'\n\nWe are left with {q_count:,} questions containing tags with over {tag_limit:,} instances\n\n')
 
     questions_tags = filtered_lists.map(lambda x: Row(_Body=x[0], _Tags=x[1])).toDF()
     questions_tags.show()
@@ -208,7 +206,11 @@ for tag_limit, stratify_limit in [
         return Row(**args)
 
     output_rdd = sc.emptyRDD()
-    for i in range(0, len(one_row._Tags)):
+    row_tag_count = len(one_row._Tags)
+    for i in range(0, row_tag_count):
+
+        print(f'\n\nProcessing tag limit: {tag_limit:,} stratify limit: {stratify_limit:,} tag {i:,} of {row_tag_count:,} total tags\n\n')
+
         positive_examples = one_hot_df.rdd.filter(lambda x: x._Tags[i])
         example_count = positive_examples.count()
         ratio = min(1.0, stratify_limit / example_count)
@@ -216,10 +218,7 @@ for tag_limit, stratify_limit in [
         positive_examples = positive_examples.sample(False, sample_ratio, seed=1337).map(create_row_columns)
         sample_count = positive_examples.count()
         print(
-            'Column {:,} had {:,} positive examples, sampled to {:,}'.format(
-                i,
-                example_count, sample_count
-            )
+            f'Column {i:,} had {example_count:,} positive examples, sampled to {sample_count:,}'
         )
         output_df = spark.createDataFrame(
             positive_examples,
