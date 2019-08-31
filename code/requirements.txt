@@ -13,7 +13,7 @@ bs4
 # tensorflow-gpu
 # tf-nightly-gpu
 # tf-nightly-gpu-2.0-preview
-tensorflow-gpu==2.0.0-beta
+tensorflow-gpu==2.0.0-beta1
 sklearn
 xgboost
 seaborn
