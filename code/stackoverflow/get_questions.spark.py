@@ -49,7 +49,7 @@ questions = spark.read.parquet('s3://stackoverflow-events/08-05-2019/Questions.A
 # Count the number of each tag
 all_tags = questions.rdd.flatMap(lambda x: re.sub('[<>]', ' ', x['_Tags']).split())
 
-MAX_LEN = 100
+MAX_LEN = 200
 PAD_TOKEN = '__PAD__'
 tokenizer = RegexpTokenizer(r'\w+')
 
@@ -65,7 +65,15 @@ def extract_text(x):
     return padded_tokens
 
 
-for tag_limit, stratify_limit in [(20000, 10000), (10000, 10000), (5000, 5000)]:  # (50000, 20000)]:
+# Prepare multiple datasets with different tag count frequency filters and per-tag stratified sample sizes
+for tag_limit, stratify_limit in [
+        (50000, 50000),
+        (20000, 10000),
+        (10000, 10000),
+        (5000, 5000),
+        (2000, 2000),
+        (1000, 1000)
+    ]:
 
     tag_counts_df = all_tags.groupBy(lambda x: x)\
         .map(lambda x: Row(tag=x[0], total=len(x[1])))\
@@ -112,7 +120,7 @@ for tag_limit, stratify_limit in [(20000, 10000), (10000, 10000), (5000, 5000)]:
     questions_tags = filtered_lists.map(lambda x: Row(_Body=x[0], _Tags=x[1])).toDF()
     questions_tags.show()
     questions_tags.select(
-        '*', 
+        '*',
         F.size('_Tags').alias('_Tag_Count')
     ).orderBy(
         ['_Tag_Count'],
