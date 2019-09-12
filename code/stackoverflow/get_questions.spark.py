@@ -80,6 +80,10 @@ PATHS = {
         'local': 'data/stackoverflow/08-05-2019/final_report.{}.json',
         's3': '08-05-2019/final_report.{}.json',
     },
+    'bad_questions': {
+        'local': 'data/stackoverflow/08-05-2019/Questions.Bad.{}.{}.parquet',
+        's3': 's3://stackoverflow-events/08-05-2019/Questions.Bad.{}.{}.parquet',
+    }
 }
 
 
@@ -149,14 +153,14 @@ def extract_text(x):
 
 # Prepare multiple datasets with different tag count frequency filters and per-tag
 # stratified sample sizes
-for tag_limit, stratify_limit in \
+for tag_limit, stratify_limit, lower_limit in \
     [
-        (50000, 50000),
-        (20000, 10000),
-        (10000, 10000),
-        (5000, 5000),
-        (2000, 2000),
-        (1000, 1000)
+        (50000, 50000, 500),
+        (20000, 10000, 500),
+        (10000, 10000, 500),
+        (5000, 5000, 500),
+        (2000, 2000, 500),
+        (1000, 1000, 500),
     ]:
 
     print(f'\n\nStarting run for tag limit {tag_limit:,} and sample size {stratify_limit:,}\n\n')
@@ -168,7 +172,7 @@ for tag_limit, stratify_limit in \
         .select('tag', 'total').orderBy(['total'], ascending=False)
     tag_counts_df.write.mode('overwrite').parquet(PATHS['tag_counts'][PATH_SET].format(tag_limit))
     tag_counts_df = spark.read.parquet(PATHS['tag_counts'][PATH_SET].format(tag_limit))
-    
+
     if DEBUG is True:
         tag_counts_df.show(100)
 
@@ -176,8 +180,13 @@ for tag_limit, stratify_limit in \
     tag_counts = {x.tag: x.total for x in local_tag_counts}
 
     remaining_tags = tag_counts_df.filter(tag_counts_df.total > tag_limit)
+    bad_tags       = tag_counts_df.filter(
+        tag_counts_df.total <= tag_limit & tag_counts_df.total >= lower_limit
+    )
     tag_total = remaining_tags.count()
-    print(f'\n\nNumber of tags with > {tag_limit:,} instances: {tag_total:,}\n\n')
+    bad_tag_total = bad_tags.count()
+    print(f'\n\nNumber of tags with > {tag_limit:,} instances: {tag_total:,}')
+    print(f'Number of tags with >= {lower_limit:,} and lower than/equal to {tag_limit:,}\n\n')
 
     top_tags = tag_counts_df.filter(tag_counts_df.total > tag_limit)
     valid_tags = top_tags.rdd.map(lambda x: x['tag']).collect()
@@ -192,6 +201,15 @@ for tag_limit, stratify_limit in \
     filtered_lists = questions_lists\
         .filter(lambda x: bool(set(x[1]) & set(valid_tags)))\
         .map(lambda x: (x[0], [y for y in x[1] if y in valid_tags]))
+
+    # Set aside other questions without frequent enough tags for enrichment via Snorkel
+    bad_questions = questions_lists\
+        .filter(lambda x: bool(set(x[1]) & set(bad_tags)))\
+        .map(lambda x: (x[0], [y for y in x[1] if y in bad_tags]))
+    bad_questions_df = bad_questions.map(lambda x: Row(_Body=x[0], _Tags=x[1])).toDF()
+    bad_questions_df.write.mode('overwrite').parquet(
+        PATHS['bad_questions'][PATH_SET].format(tag_limit, lower_limit)
+    )
 
     if DEBUG is True:
         q_count = filtered_lists.count()
