@@ -1,4 +1,12 @@
 #!/bin/bash
 set -x -e
 
-sudo pip-3.6 install lxml frozendict ipython pandas boto3 bs4
+# Install all required modules
+sudo pip-3.6 install lxml frozendict ipython pandas boto3 bs4 nltk
+
+# Download nltk data
+python -m nltk.downloader punkt
+python -m nltk.downloader stopwords
+
+# Install Mosh
+sudo yum -y install mosh
