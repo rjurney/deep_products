@@ -33,3 +33,4 @@ keras-rectified-adam
 wandb
 spacy
 textblob
+names
