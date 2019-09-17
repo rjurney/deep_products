@@ -128,11 +128,6 @@ questions\
     .parquet(PATHS['questions'][PATH_SET])
 questions = spark.read.parquet(PATHS['questions'][PATH_SET])
 
-#
-# Split off questions with no tags for weak supervision
-#
-untagged_questions = questions.filter(F.length('_Tags') == 0)
-
 # Count the number of each tag
 all_tags = questions.rdd.flatMap(lambda x: re.sub('[<>]', ' ', x['_Tags']).split())
 
@@ -163,7 +158,7 @@ for tag_limit, stratify_limit, lower_limit in \
         (1000, 1000, 500),
     ]:
 
-    print(f'\n\nStarting run for tag limit {tag_limit:,} and sample size {stratify_limit:,}\n\n')
+    print(f'\n\nStarting run for tag limit {tag_limit:,}, sample size {stratify_limit:,}, and lower limit {lower_limit:,}\n\n')
 
     tag_counts_df = all_tags\
         .groupBy(lambda x: x)\
@@ -179,17 +174,19 @@ for tag_limit, stratify_limit, lower_limit in \
     local_tag_counts = tag_counts_df.rdd.collect()
     tag_counts = {x.tag: x.total for x in local_tag_counts}
 
-    remaining_tags = tag_counts_df.filter(tag_counts_df.total > tag_limit)
-    bad_tags       = tag_counts_df.filter(
-        tag_counts_df.total <= tag_limit & tag_counts_df.total >= lower_limit
-    )
-    tag_total = remaining_tags.count()
-    bad_tag_total = bad_tags.count()
+    # Count the good tags
+    remaining_tags_df = tag_counts_df.filter(tag_counts_df.total > tag_limit)
+    tag_total = remaining_tags_df.count()
     print(f'\n\nNumber of tags with > {tag_limit:,} instances: {tag_total:,}')
-    print(f'Number of tags with >= {lower_limit:,} and lower than/equal to {tag_limit:,}\n\n')
+    valid_tags = remaining_tags_df.rdd.map(lambda x: x['tag']).collect()
 
-    top_tags = tag_counts_df.filter(tag_counts_df.total > tag_limit)
-    valid_tags = top_tags.rdd.map(lambda x: x['tag']).collect()
+    # Count the bad tags
+    bad_tags_df = tag_counts_df.filter(
+        (tag_counts_df.total <= tag_limit) & (tag_counts_df.total > lower_limit)
+    )
+    bad_tag_total = bad_tags_df.count()
+    print(f'Number of tags with >= {lower_limit:,} and lower than/equal to {tag_limit:,} instances: {bad_tag_total:,}\n\n')
+    bad_tags = bad_tags_df.rdd.map(lambda x: x['tag']).collect()
 
     # Turn text of body and tags into lists of words
     questions_lists = questions.rdd.map(
@@ -202,7 +199,7 @@ for tag_limit, stratify_limit, lower_limit in \
         .filter(lambda x: bool(set(x[1]) & set(valid_tags)))\
         .map(lambda x: (x[0], [y for y in x[1] if y in valid_tags]))
 
-    # Set aside other questions without frequent enough tags for enrichment via Snorkel
+    #  Set aside other questions without frequent enough tags for enrichment via Snorkel
     bad_questions = questions_lists\
         .filter(lambda x: bool(set(x[1]) & set(bad_tags)))\
         .map(lambda x: (x[0], [y for y in x[1] if y in bad_tags]))
@@ -210,6 +207,15 @@ for tag_limit, stratify_limit, lower_limit in \
     bad_questions_df.write.mode('overwrite').parquet(
         PATHS['bad_questions'][PATH_SET].format(tag_limit, lower_limit)
     )
+
+    # Explicitly recover memory
+    del tag_counts_df
+    del bad_tags_df
+    del questions_lists
+    del bad_questions
+    del bad_questions_df
+
+    gc.collect()
 
     if DEBUG is True:
         q_count = filtered_lists.count()
@@ -220,14 +226,14 @@ for tag_limit, stratify_limit, lower_limit in \
         questions_tags.show()
 
     # Write the word/tag lists out
-    questions_tags.write.mode('overwrite').parquet(path['questions_tags'][PATH_SET].format(tag_limit))
-    questions_tags = spark.read.parquet(path['questions_tags'][PATH_SET].format(tag_limit))
+    questions_tags.write.mode('overwrite').parquet(PATHS['questions_tags'][PATH_SET].format(tag_limit))
+    questions_tags = spark.read.parquet(PATHS['questions_tags'][PATH_SET].format(tag_limit))
 
     # One-hot-encode the multilabel tags
     enumerated_labels = [
         z for z in enumerate(
             sorted(
-                remaining_tags.rdd
+                remaining_tags_df.rdd
                 .groupBy(lambda x: 1)
                 .flatMap(lambda x: [y.tag for y in x[1]])
                 .collect()
@@ -236,6 +242,10 @@ for tag_limit, stratify_limit, lower_limit in \
     ]
     tag_index = {x: i for i, x in enumerated_labels}
     index_tag = {i: x for i, x in enumerated_labels}
+
+    # Explicitly free RAM
+    del remaining_tags_df
+    gc.collect()
 
     def one_hot_encode(tag_list, enumerated_labels):
         """PySpark can't one-hot-encode multilabel data, so we do it ourselves."""
@@ -277,8 +287,8 @@ for tag_limit, stratify_limit, lower_limit in \
         schema
     )
     one_hot_df.show()
-    one_hot_df.write.mode('overwrite').parquet(PATHS['one_hot'][PATH_SET])
-    one_hot_df = spark.read.parquet(PATHS['one_hot'][PATH_SET])
+    one_hot_df.write.mode('overwrite').parquet(PATHS['one_hot'][PATH_SET].format(tag_limit))
+    one_hot_df = spark.read.parquet(PATHS['one_hot'][PATH_SET].format(tag_limit))
 
     def create_schema(one_row):
         schema_list = [
@@ -328,9 +338,17 @@ for tag_limit, stratify_limit, lower_limit in \
 
         output_df.write.mode('overwrite').json(PATHS['output_jsonl'][PATH_SET].format(tag_limit, i))
 
-        # Avoid RAM problems
+        # Free RAM explicitly each loop
         del output_df
         gc.collect()
+
+    # Avoid RAM problems
+    del filtered_lists
+    del one_hot_questions
+    del one_hot_df
+    del positive_examples
+    gc.collect()
+
 
 #
 # Store the associated files to local disk or S3 as JSON
