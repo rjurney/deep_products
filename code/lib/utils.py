@@ -1,5 +1,7 @@
 # Utilities for the book's notebooks
 
+import numpy as np
+
 
 def fix_metric_name(name):
     """Remove the trailing _NN, ex. precision_86"""
