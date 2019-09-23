@@ -1,36 +1,38 @@
-pandas==0.24.2
-numpy>=1.16.0
-plotly
+boto3
+bs4
+cupy-cuda100
 findspark
+frozendict
+gensim
+gpustat
 iso8601
+jupyter
+keras_metrics
+keras-rectified-adam
 lxml
-snorkel
-# snorkel-metal
+names
+nltk
+numpy>=1.16.0
+pandas==0.24.2
+plotly
+pyarrow
 pyspark
 requests
-frozendict
-bs4
+s3fs
+seaborn
+sklearn
+snorkel
+# snorkel-metal
+spacy
+tensorboard
 # tensorflow-gpu
-# tf-nightly-gpu
-# tf-nightly-gpu-2.0-preview
 # tensorflow-gpu==2.0.0-beta1
 # tensorflow-gpu==2.0.0rc0
-sklearn
-xgboost
-seaborn
-gensim
-cupy-cuda100
-gpustat
-nltk
 tensorflow_hub==0.5.0
-tqdm
-keras_metrics
-pyarrow
-s3fs
-texttable
-jupyter
-keras-rectified-adam
-wandb
-spacy
 textblob
-names
+texttable
+# tf-nightly-gpu
+# tf-nightly-gpu-2.0-preview
+tqdm
+wandb
+xgboost
