@@ -7,14 +7,10 @@ gensim
 gpustat
 iso8601
 jupyter
-keras_metrics
-keras-rectified-adam
 lxml
-names
 nltk
 numpy>=1.16.0
 pandas==0.24.2
-plotly
 pyarrow
 pyspark
 requests
@@ -24,15 +20,10 @@ sklearn
 snorkel
 # snorkel-metal
 spacy
-tensorboard
-# tensorflow-gpu
-# tensorflow-gpu==2.0.0-beta1
+# tensorboard
 # tensorflow-gpu==2.0.0rc0
 tensorflow_hub==0.5.0
 textblob
 texttable
-# tf-nightly-gpu
-# tf-nightly-gpu-2.0-preview
 tqdm
 wandb
-xgboost
