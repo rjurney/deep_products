@@ -1,5 +1,5 @@
 boto3
-bs4
+beautifulsoup4
 cupy-cuda100
 findspark
 frozendict
@@ -16,13 +16,13 @@ pyspark
 requests
 s3fs
 seaborn
-sklearn
+scikit-learn
 snorkel
 # snorkel-metal
 spacy
 # tensorboard
 # tensorflow-gpu==2.0.0rc0
-tensorflow_hub==0.5.0
+tensorflow-hub==0.5.0
 textblob
 texttable
 tqdm
