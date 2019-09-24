@@ -18,8 +18,7 @@ def fix_value(val):
 
 
 def fix_metric(name, val):
-    """Fix Tensorflow/Keras metrics by removing any training _NN and concert numpy.float
-       to python float"""
+    """Fix Tensorflow/Keras metrics by removing any training _NN and concert numpy.float to python float"""
     repeat_name = fix_metric_name(name)
     py_val = fix_value(val)
     return repeat_name, py_val
