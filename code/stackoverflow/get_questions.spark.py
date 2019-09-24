@@ -91,7 +91,7 @@ PATHS = {
 # Initialize Spark with dynamic allocation enabled to (hopefully) use less RAM
 #
 spark = SparkSession.builder\
-    .appName('Deep Products - Sample JSON')\
+    .appName('Weakly Supervised Learning - Sample JSON')\
     .config('spark.dynamicAllocation.enabled', True)\
     .config('spark.shuffle.service.enabled', True)\
     .getOrCreate()
@@ -393,7 +393,7 @@ if PATH_SET == 's3':
     obj = s3.Object(PATHS['s3_bucket'], PATHS['label_counts']['s3'].format(tag_limit))
     obj.put(Body=json.dumps(label_counts).encode())
 else:
-    json.dumps(label_counts, open(PATHS['label_counts']['local'].format(tag_limit), 'w'))
+    json.dump(label_counts, open(PATHS['label_counts']['local'].format(tag_limit), 'w'))
 
 # Write the final stratified sample to Parquet format
 stratified_sample.write.mode('overwrite').parquet(PATHS['questions_final'][PATH_SET].format(tag_limit))
