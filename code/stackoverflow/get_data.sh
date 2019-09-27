@@ -44,3 +44,9 @@ do
     7za x $xml_file
     lzof $xml_file
 done
+
+cd /home/rjurney/deep_products/data
+mkdir GloVe
+cd GloVe
+wget http://nlp.stanford.edu/data/glove.6B.zip
+unzip glove.6B.zip
