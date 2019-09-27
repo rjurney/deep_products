@@ -26,12 +26,11 @@ fi
 
 BUCKET="stackoverflow-events"
 BASE_URL="s3://${BUCKET}/${DATA_DATE}"
-OUTPUT_DIR="data/stackoverflow/${DATA_DATE}"
+OUTPUT_DIR="data/stackoverflow/${DATA_DATE}/"
 
 
 # Grab the files...
 FETCH_URI="${BASE_URL}/Questions.Stratified.Final.${LIMIT}.parquet"
-DATA_OUTPUT_DIR="${OUTPUT_DIR}/Questions.Stratified.Final.${LIMIT}.parquet/"
 
 # Print all commands as they run
 set -x
@@ -40,7 +39,7 @@ set -x
 mkdir -p "${DATA_OUTPUT_DIR}"
 
 # Fetch the data...
-s3cmd get --recursive ${FETCH_URI} ${DATA_OUTPUT_DIR}/
+s3cmd get --recursive ${FETCH_URI} ${OUTPUT_DIR}/
 s3cmd get "${BASE_URL}/final_report.${LIMIT}.json" ${OUTPUT_DIR}/
 s3cmd get "${BASE_URL}/index_tag.${LIMIT}.json" ${OUTPUT_DIR}/
 s3cmd get "${BASE_URL}/tag_index.${LIMIT}.json" ${OUTPUT_DIR}/
