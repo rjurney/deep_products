@@ -43,10 +43,9 @@
 	4. Deploying a Model
 
 # Introduction
+Welcome to *Weakly Supervised Learning*. This is a free and open source book about building artificially intelligent products using a part of the field of *machine learning* (ML) called *natural language processing* (NLP), *deep learning* (DL) and *weakly supervised learning* (WSL). WSL enables machines to learn without labeling millions of training records by hand. This book provides a how to guide for shipping deep learning models using WSL.
 
-Welcome to *Weakly Supervised Learning*. This is a free and open source book about building artificially intelligent products using a part of the field of machine learning (ML) called natural language processing (NLP), deep learning (DL) and weakly supervised learning (WSL). WSL enables machines to learn without collecting and labeling millions of training records by hand. This book aims to provide a how to guide for shipping deep learning models using WSL.
-
-
+Specifically, the book will explore practical applications of several methods of *weakly supervised learning* that have emerged in response to these developments. In *semi-supervised learning* an initial model trained on limited labeled data is used to label additional data, which then trains an improved final model. In *transfer learning* an existing model from a related domain is re-trained on or applied to training data from the problem domain. In *distant supervision* existing knowledge from databases and other sources is used to programmatically create low quality labels, which are combined via *weak supervision* in the form of a generative model into high quality labels for the entire dataset. I will demonstrate each strategy in the context of a deployable model. Then in the final chapter, we will deploy these models using [Kubeflow](https://www.kubeflow.org/docs/about/kubeflow/).
 
 # Chapter 1: Weakly Supervised Learning
 Welcome to the chapter length introduction to weakly supervised learning! This is the section where I give you the context that will inspire and motivate you to read the rest of this book: the overview. Right? This is a strange exercise for me, because it involves citing a great number of academic books and papers, something I’ve never done before. I have tried to keep things simple enough that a business audience might get value while still covering the material in sufficient depth. I hope this high level explanation of how we (and I mean we as in I follow along while researchers invent) got to where we are in deep learning and natural language processing serves as an introduction for some and as a worthwhile review for others. I’m a history nerd, so let’s start with some recent history.
@@ -80,27 +79,30 @@ It is often said that “data is the new oil.” It is cheap, plentiful and at t
 
 Fortune reported in 2019 that “Over half the respondents said they oversee an annual A.I. budget of at least $51,000. Meanwhile, 13% said they control A.I. budgets of $251,000 to $500,000, an amount that reflects a modest commitment and likely small staff. Five percent said they’re spending over $5 million.” [Vanian, Jonathan, 2019] Given growing AI budgets and what we have said about the cost of labeling, it is clear that this is a major component of the budgets of many companies and a key resource constrains in building machine learning models, features and products.
 
-The need for ever increasing volumes of labeled training data can be frustrating for anyone building AI systems and products: data scientists, machine learning engineers, product managers, chief data officers, chief AI officers and current and aspiring ML entrepreneurs because before they can use ML to build a product they have to find a way to label a lot of data or build something that generates a lot of labels. This means lots of jobs for data engineers, machine learning engineers and task workers at growing companies with growing datasets, but it makes things hard for totally new applications or for young companies. This is why the most innovative AI companies are those that have products that already collect a large amount of labeled data. For everyone else, labeling can be the most difficult challenge in AI for many problems.
+The need for ever increasing volumes of labeled training data can be frustrating for anyone building AI systems and products: data scientists, machine learning engineers, product managers, chief data officers, chief AI officers and current and aspiring ML entrepreneurs because before they can use ML to build a product they have to find a way to label a lot of data or build something that generates a lot of labels. This means lots of jobs for data engineers, machine learning engineers and task workers at growing companies with growing datasets, but it makes things hard for totally new applications or for young companies. This is why the most innovative AI companies are those that have products that already collect a large amount of labeled data. For everyone else building AI, labeling is one of the most difficult challenges for many problems.
 
 ## Weakly Supervised Learning
+What does all this have to do with weakly supervised learning? I’d like to explain on a personal level before getting technical.
 
-New applications are what interest me. I built them at LinkedIn, I built them as an entrepreneur and I’ve built them as a consultant at my consultancy [Data Syndrome](http://datasyndrome.com). At my startup [Relato](http://relato.io) I spent a great deal of time using web crawlers and task workers who augmented my company database by collecting connections between companies such as partnerships, customers, competitors and investors. This helped me create an excellent lead scoring model that drove a lead generation platform - a platform that looks at who you sell to and finds other customers likely to buy your product. This involved three assets: a universe of companies I could recommend, an effective model to recommend them, and a list of customers to serve as positive examples in the training data for the lead scoring engine. Each customer got their own model, since models varied between customers. Label scarcity was a key problem for the business: people required a non-disclosure agreement or NDA to give me their customer list. This significantly slowed business development because it meant I needed an NDA in place to receive the training data. Doh!
+New analytics applications are what get me excited. I’ve built them my entire career. I started out in quality assurance automation and then moved into reporting/analytics and interactive visualization. Later at LinkedIn I built AI products; I was the data scientist for modeling student’s career paths for [Career Explorer](https://blog.linkedin.com/2010/10/04/linkedin-career-explorer) and I led the development and product managed [LinkedIn InMaps](https://blog.linkedin.com/2011/01/24/linkedin-inmaps), which visualized your LinkedIn network. I built them as an entrepreneur at and I’ve built them as a consultant at my consultancy [Data Syndrome](http://datasyndrome.com).
 
-Let’s say that I’m familiar with this problem in a very personal way :) This is what got me interested in **weakly supervised learning.**
+At my startup [Relato](http://relato.io) I spent a great deal of time using web crawlers and task workers to augment my company database by collecting connections between companies such as partnerships, customers, competitors and investors (I told Relato’s story [here](https://www.oreilly.com/ideas/relato-turking-the-business-graph)). This helped me create an excellent lead scoring model that drove a lead generation platform, which is a platform that looks at who your customers are and finds other customers likely to buy your product. This involved three assets: a universe of companies I could recommend, an effective model to recommend them, and a list of customers to serve as positive examples in the training data for the lead scoring engine. Each customer got a model trained on their customer data because models varied between customers as much as customers varied between one another. Label scarcity was a key problem for my business: companies often required a non-disclosure agreement or NDA to give me their customer list. This significantly slowed business development because it meant I needed an NDA in place to receive the training data. In the end, this was a major contributor to Relato’s demise. As Homer would say, “Doh!”
+
+So… let’s say that I’m familiar with labeling problems in a very personal way :) This is what got me interested in **weakly supervised learning** and **weak supervision**.  Now let’s define these terms formally.
 
 Lorenzo Torresani in the [Weakly Supervised Learning chapter of Computer Vision (2016)](https://link.springer.com/referenceworkentry/10.1007%2F978-0-387-31439-6_308) defines weakly supervised learning as:
 
-<PRODUCTION NOTE: regardless of the style guide indicating an inline quotation, I want the next two quotes to be block quotes. The topics of the book deserve to be defined separately in their own blockquote.>
+<PRODUCTION NOTE: regardless of the style guide indicating an inline quotation, I want the next two quotes to be block quotes. The two major topics of the book deserve to be defined separately in their own blockquote.>
 
 > Weakly supervised learning is a machine learning framework where the model is trained using examples that are only partially annotated or labeled.  
 
-A related concept is called **weak supervision.** According to HazyResearch researchers Alex Ratner, Stephen Bach, Paroma Varma and Chris Ré in the blog post [Weak Supervision: The New Programming Paradigm for Machine Learning](https://hazyresearch.github.io/snorkel/blog/ws_blog_post.html), it is defined thusly:
+A related concept is called **weak supervision.** According to Stanford HazyResearch group researchers Alex Ratner, Stephen Bach, Paroma Varma and Chris Ré in the blog post [Weak Supervision: The New Programming Paradigm for Machine Learning](https://hazyresearch.github.io/snorkel/blog/ws_blog_post.html), weak supervision is about, “leveraging higher-level and/or noisier input from subject matter experts (SMEs).”
 
-> Weak supervision is about leveraging higher-level and/or noisier input from subject matter experts (SMEs).   
+> Getting labeled training data has become *the* key development bottleneck in supervised machine learning. We provide a broad, high-level overview of recent *weak supervision* approaches, where *noisier* or *higher-level* supervision is used as a more expedient and flexible way to get supervision signal, in particular from subject matter experts (SMEs). We provide a simple, broad definition of weak supervision as being comprised of one or more noisy conditional distributions over unlabeled data, and focus on the key technical challenge of unifying and modeling these sources.  
 
-What does it mean to me? Weakly supervised learning provides hope for the data rich and the label poor. Which is most people.
+Simply put: weakly supervised learning provides hope for the data rich and the label poor. In other words, most companies adopting AI strategies.
 
-The book will explore practical applications of several methods of *weakly supervised learning* that have emerged in response to these developments. In *semi-supervised learning* an initial model trained on limited labeled data is used to label additional data, which then trains an improved final model. In *transfer learning* an existing model from a related domain is re-trained on or applied to training data from the problem domain. In *distant supervision* existing knowledge from databases and other sources is used to programmatically create low quality labels, which are combined via *weak supervision* in the form of a generative model into high quality labels for the entire dataset. I will demonstrate each strategy in the context of a deployable application.
+
 
 
 ### A Matter of Taxonomy
@@ -135,7 +137,7 @@ Before the application of neural networks to language modeling, “core NLP tech
 In 2003, the paper Neural Probabilistic Language Model [Bengio, Ducharme, Vincent, Jauvin, 2003] demonstrated superior performance on several common NLP tasks using a distributed representation for words. A decade later, the rise of dense representations in the form of text embeddings like Word2Vec [Le, Mikolov, 2013] accelerated the development of DL methods for NLP. Text embeddings changed text encoding from a list of bits identifying the presence of words in a document under the bag-of-words model to a dense representation that describes the semantics of each word in terms of its position in a vector space where each dimension corresponds to a particular meaning [Tardy, 2017](https://www.quora.com/How-do-distributed-representation-avoid-the-curse-of-dimensionality-in-natural-language-processing-NLP/answer/Paul-Tardy). Neural networks work better with dense than with sparse representations. The chart below shows the difference between sparse and dense text feature representations.
 
 ![](images/chapter_1/sparse_vs_dense_embedding.png)
-[Sparse vs. dense text encoding (Goldberg, 2015)](file://./images/intro/Sparse_vs_Dense_Embedding.png) 
+[Sparse vs. dense text encoding (Goldberg, 2015)](https://arxiv.org/abs/1510.00726) 
 
 <REMINDER: Ask Goldberg for permission>
 
@@ -171,7 +173,7 @@ Slicing functions enable us to focus on particular subsets of data that are more
 ## Chapter Bibliography
 
 * Torresani, Lorenzo,  [Computer Vision](https://link.springer.com/referencework/10.1007/978-0-387-31439-6), [“Weakly Supervised Learning”](https://link.springer.com/referenceworkentry/10.1007%2F978-0-387-31439-6_308), Springer, Boston, MA, USA, 2016
-* Ratner, Bach, Varma, Ré; [“Weak Supervision: The New Programming Paradigm for Machine Learning”](https://hazyresearch.github.io/snorkel/blog/ws_blog_post.html), *Hazy Research*, 2017, Accessed Sept 26, 2019
+* Ratner, Bach, Varma, Ré; [“Weak Supervision: The New Programming Paradigm for Machine Learning”](https://hazyresearch.github.io/snorkel/blog/ws_blog_post.html), *HazyResearch*, 2017, Accessed Sept 26, 2019
 * Manning, Christopher D.; Schiitze, Hinrich, [Foundations of Statistical Natural Language Processing](https://amzn.to/2HRDFBm), The MIT Press, Cambridge, MA, USA, 1999
 * Goldberg, Yoav, [A Primer on Neural Network Models for Natural Language Processing](https://arxiv.org/abs/1510.00726), 2015
 * Theodoridis, Koutroumbas, [Pattern Recognition - 4th Edition](https://www.elsevier.com/books/pattern-recognition/theodoridis/978-1-59749-272-0), Academic Press, Millbrae, CA, USA, 2008
@@ -873,7 +875,6 @@ pd.DataFrame(prediction_tests)
 We can see from these three records that the model is doing fairly well. This tells a different story than performance metrics alone. It is so strange that most machine learning examples just compute performance and don’t actually employ the `predict()` method! At the end of the day statistical performance is irrelevant and what matters is the real world performance - which is not contained in simple summary statistics!
 
 ![](images/chapter_2/jupyter_results.png)
-*Padded/encoded sentences along with the label and predicted label in a DataFrame*
 
 
 ## Chapter Bibliography
