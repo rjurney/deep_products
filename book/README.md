@@ -1,4 +1,6 @@
 # Weakly Supervised Learning: Do More with Less Data
+- - - -
+
 #  Table of Contents
 
 1. Chapter 1: Introduction
@@ -42,36 +44,77 @@
 
 # Introduction
 
-Welcome to *Weakly Supervised Learning*. This is a free and open source book about building products using a part of the field of machine learning (ML) called natural language processing (NLP), deep learning (DL) and weakly supervised learning (WSL). WSL enables machines to learn without collecting and labeling millions of training records by hand. This book aims to provide a how to guide for shipping deep learning models using WSL.
+Welcome to *Weakly Supervised Learning*. This is a free and open source book about building artificially intelligent products using a part of the field of machine learning (ML) called natural language processing (NLP), deep learning (DL) and weakly supervised learning (WSL). WSL enables machines to learn without collecting and labeling millions of training records by hand. This book aims to provide a how to guide for shipping deep learning models using WSL.
 
 
 
 # Chapter 1: Weakly Supervised Learning
-Welcome to the chapter length introduction to weakly supervised learning! This is the section where I give you the context that will inspire and motivate you to read the rest of this book: the overview. Right? This is a strange exercise for me, because it involves citing a great number of academic publications, something I’ve never done before. I have tried to keep things simple enough that a business audience might get value while still covering the material in sufficient depth. I hope this high level explanation of how we (and I mean we as in I follow along while researchers invent) got to where we are in deep learning and natural language processing serves as an introduction for some and as a worthwhile review for others. I’m a history nerd, so let’s start with some recent history.
+Welcome to the chapter length introduction to weakly supervised learning! This is the section where I give you the context that will inspire and motivate you to read the rest of this book: the overview. Right? This is a strange exercise for me, because it involves citing a great number of academic books and papers, something I’ve never done before. I have tried to keep things simple enough that a business audience might get value while still covering the material in sufficient depth. I hope this high level explanation of how we (and I mean we as in I follow along while researchers invent) got to where we are in deep learning and natural language processing serves as an introduction for some and as a worthwhile review for others. I’m a history nerd, so let’s start with some recent history.
 
-Since deep learning became state of the art in several areas in 2011/12, deep networks have enabled new applications with unprecedented performance driven by unstructured data to proliferate in research and industry. Unstructured data tends to dwarf structured data in size: many pages of text instead of columnar data, hours of audio instead of text, images instead of descriptions, video instead of images. And these algorithms are hungry: up to millions of unstructured records are required to achieve good performance on many tasks, and this is increases with the complexity of the task. While the open availability of large datasets and models based on them has helped feed networks, much of the work of building machine learning applications is now centered around data collection. Data alone however, is not enough.
+## Situational Outlook
 
-While unsupervised learning is increasingly powerful and the most sophisticated language models now work this way, most end applications involve supervised learning. Supervised learning requires labeled datasets, and labeling data is very expensive or even impossible. Dave McCrory, who as VP of Software Engineering at GE Digital developed AI applications for an array of industries, recently told me, “For medical diagnosis, hand labeling large numbers of MRIs by a doctor isn’t just expensive, it’s impossible. A radiologist will not label more than about a thousand records before he refuses to do more.”  Work on machine learning products now involves expensive and time consuming curation of the labeled datasets that drive the models that drive products. The possession of strategic datasets is often a prerequisite for product innovation. 
+Since deep learning became state of the art in several areas in 2011/12, deep networks have rapidly improved to enable new applications with unprecedented performance driven by unstructured data to proliferate in research and industry. Deep learning is able to pickup complex, non-linear patterns in unstructured data to achieve never before seen levels of performance in predictive analytics. Unstructured data tends to dwarf structured data in size: many pages of text instead of columnar data, hours of audio instead of text, images instead of descriptions, video instead of images. And these algorithms are hungry: up to millions of unstructured records are required to achieve good performance on many tasks, and this increases with the sophistication of the task. While the open availability of large datasets and models based on them has helped feed networks, much of the work of building machine learning applications is now centered around data collection.
 
-Curation isn’t limited to just data - companies now manage large workforces for hand labeling data. “Mechanical turks” or task workers have to be rigorously selected and trained as well. Some companies and products - such as Amazon’s Mechanical Turk - create elaborate systems of tests to qualify task workers for a set of labeling tasks. A user might be required to have a certain minimum accuracy score on a set of standard tests or to achieve a certain level of performance across multiple metrics on real world tasks. Passing these tests represents a serious investment of time for both the worker and the company, and the process is incredibly competitive globally.
+Raw data alone however, is not enough. While unsupervised learning is increasingly powerful and the most sophisticated language models now work this way, most end applications involve supervised learning. Supervised learning requires labeled datasets, and labeling data is very expensive or even impossible. Dave McCrory, who as VP of Software Engineering at GE Digital developed AI applications for an array of industries, recently told me, “For medical diagnosis, hand labeling large numbers of MRIs by a doctor isn’t just expensive, it’s impossible. A radiologist will not label more than about a thousand records before he refuses to do more.”  Work on machine learning products now involves expensive and time consuming curation of the labeled datasets that drive the models that drive products. The possession of strategic datasets is often a prerequisite for product innovation. This creates an enormous barrier, the cold start problem, to solving many problems.
 
-At any given moment there are over 100,000 workers using the Mechanical Turk platform [Djellel, Difallah; Filatova, Elena; Ipeirotis, Panos, 2018], and each worker’s labels are compared to known good results (also known as “gold standard data”) or several other workers’ results on the same task to determine their performance. This system can be brutal because abstracted behind a programmatic API, task workers are intelligent human beings performing tasks that are mindless for the end user (is this a cat? Is this a stoplight?) who is primarily tasked with labeling data because he or she lacks economic opportunity compared to the hiring party. Some companies recruit and pay task workers hourly through websites such as UpWork, others hire them directly in an office environment. Tasks issued to workers hired by both methods of recruitment are becoming increasingly sophisticated, so as some point of sophistication it makes sense to form an ongoing relationship with task workers as employees of an organization to be trained, developed and retained. In short, armies of task workers and the hardware and software systems, processes and management supporting them represent a major cost in the development of artificial intelligence applications. This cost can be a major predictor of AI project success. Chris Albion, who leads the data science team at Devoted Health, said in 2019, “The sheer volume of data you need means that it better be cheap as dirt to collect. If you hear, ‘Our model is trained using data from vaporizing moon rocks’, that is going to be a terrible startup.”
+![](images/chapter_1/labeling_data_photo_of_me.png)
+*The author modeling shark behavior by showing off in his new wetsuit, before and after labeling. Can you spot the error? It’s subtle :)*
 
-Sophisticated software platforms such as reCAPTCHA and startups selling them have arisen to try to reduce labeling costs, an indication of the scale of the problem. Often these systems are built into features of products. The cost of acquiring labeled training data is otherwise so high that so far it is the major consumer internet players who have dominated the space because data collection is built into their products. This has also led to the co-development of the sophisticated infrastructure driving big data, which consumer internet companies had first (after science) and which they have productized as the leaders of the cloud computing market. Investor and veteran data scientist Pete Skomoroch said in 2018, “Without large amounts of good raw and labeled training data, solving most AI problems is not possible. Acquiring the data is harder to speed up. The best companies have data collection built into [their] product [and user experience] and get AI training data from their users.” He went on to say in 2019, “Data labeling is a good proxy for whether machine learning is cost effective for a problem. If you can build labeling into normal user activities you track like Facebook, Google and Amazon consumer applications you have a shot. Otherwise, you burn money paying for labeled data.”
+Curation isn’t limited to data - companies now manage large workforces for hand labeling data. “Mechanical turks” or task workers have to be rigorously selected and trained as well. Some companies and products - such as Amazon’s Mechanical Turk - create elaborate systems of tests to qualify task workers for a set of labeling tasks. A user might be required to have a certain minimum accuracy score on a set of standard tests or to achieve a certain level of performance across multiple metrics on real world tasks. Passing these tests represents a serious investment of time for both the worker and the company, and the process is incredibly competitive globally.
 
-This can be frustrating for a data scientist, machine learning engineer, product manager, chief data or aspiring ML entrepreneur because before they can use machine learning to build a product they have to find a way to gather or build something that generates lots of data! This means lots of jobs for machine learning engineers at growing companies with growing datasets, but it makes things hard for totally new applications. And new applications are what interest me.
+![](images/chapter_1/mechanical_turk_templates.png)
+*Templates for language tasks on Mechanical Turk*
 
-Lorenzo Torresani in [Weakly Supervised Learning (2016)](https://link.springer.com/referenceworkentry/10.1007%2F978-0-387-31439-6_308) defines weakly supervised learning as:
+At any given moment there are over 100,000 workers using the Mechanical Turk platform [Djellel, Difallah; Filatova, Elena; Ipeirotis, Panos, 2018], and each worker’s labels are compared to known good results (also known as “gold standard data”) or several other workers’ results on the same task to determine their performance. This system can be brutal because abstracted behind a programmatic API, task workers are intelligent human beings performing tasks that are mindless for the end user (is this a cat? Is this a stoplight?) who is primarily tasked with labeling data because he or she lacks economic opportunity compared to the hiring party. Some companies recruit and pay task workers hourly through websites such as UpWork, others hire them directly in an office environment. 
 
-> *Weakly supervised learning is a machine learning framework where the model is trained using examples that are only partially annotated or labeled.*  
+Tasks issued to workers hired by both methods of recruitment are becoming increasingly sophisticated, so as some point of sophistication it makes sense to form an ongoing relationship with task workers as employees of an organization to be trained, developed and retained. In short, armies of task workers and the hardware and software systems, processes and management supporting them represent a major cost in the development of artificial intelligence applications. This cost can be a major predictor of AI project success. Chris Albion, who leads the data science team at Devoted Health, said in 2019, “The sheer volume of data you need means that it better be cheap as dirt to collect. If you hear, ‘Our model is trained using data from vaporizing moon rocks’, that is going to be a terrible startup.”
 
-What does it mean to me? Weakly supervised learning provides hope for the data poor. 
+Sophisticated software platforms such as reCAPTCHA and startups selling them have arisen to try to reduce labeling costs, an indication of the scale of the problem. Often these systems are built into features of products, for example consumer internet websites. HCaptcha is a startup with a product that enables website owners to get paid to employ HCaptcha’s CAPTCHA systems to label their customers’ data. The cost of acquiring labeled training data is otherwise so high that so far it is the major consumer internet players who have dominated the space because data collection is built into their products. This has also led to the co-development of the sophisticated infrastructure driving big data, which consumer internet companies had first (after science) and which they have productized as the leaders of the cloud computing market. 
+
+![](images/chapter_1/hcaptcha_demo_one.png)
+*Demonstration of HCaptcha, a product from Intuition Machines which pays website owners in its own crypto coin to solve data labeling puzzles*
+
+Investor and veteran data scientist Pete Skomoroch said in 2018, “Without large amounts of good raw and labeled training data, solving most AI problems is not possible. Acquiring the data is harder to speed up. The best companies have data collection built into [their] product [and user experience] and get AI training data from their users.” He went on to say in 2019, “Data labeling is a good proxy for whether machine learning is cost effective for a problem. If you can build labeling into normal user activities you track like Facebook, Google and Amazon consumer applications you have a shot. Otherwise, you burn money paying for labeled data. Many people still try to apply machine learning on high profile problems without oxygen, and burn lots of money in the process without solving them.” (Josh Wills, a self-described idiot, responded with, “I want a quote in the book,” and he thusly received).
+
+It is often said that “data is the new oil.” It is cheap, plentiful and at the root of most human activities. At the moment of writing this a 42 gallon barrel of crude oil will run you $56.15.  By comparison, on Amazon at the time or writing a single Western Digital WD Blue 4TB drive would cost me $22.47 per terabyte. The terabyte of data is the barrel of oil? The comparison only extends so far. With the coming of the Internet of Things (IoT) an ever broader array of devices are being deployed that each generate their own sensor logs of the world around them. In April, 2019 the World Economic Forum [estimated](https://www.weforum.org/agenda/2019/04/how-much-data-is-generated-each-day-cf4bddf29f/) that the entire digital universe would reach 44 zettabytes by 2020 [Desjardins, Jeff. 2019]. The different price point between labeled and unlabeled data means that we often find ourselves with an abundance of data and a shortage of labels. If data is the new oil… labels are the new gold. 
+
+Fortune reported in 2019 that “Over half the respondents said they oversee an annual A.I. budget of at least $51,000. Meanwhile, 13% said they control A.I. budgets of $251,000 to $500,000, an amount that reflects a modest commitment and likely small staff. Five percent said they’re spending over $5 million.” [Vanian, Jonathan, 2019] Given growing AI budgets and what we have said about the cost of labeling, it is clear that this is a major component of the budgets of many companies and a key resource constrains in building machine learning models, features and products.
+
+The need for ever increasing volumes of labeled training data can be frustrating for anyone building AI systems and products: data scientists, machine learning engineers, product managers, chief data officers, chief AI officers and current and aspiring ML entrepreneurs because before they can use ML to build a product they have to find a way to label a lot of data or build something that generates a lot of labels. This means lots of jobs for data engineers, machine learning engineers and task workers at growing companies with growing datasets, but it makes things hard for totally new applications or for young companies. This is why the most innovative AI companies are those that have products that already collect a large amount of labeled data. For everyone else, labeling can be the most difficult challenge in AI for many problems.
+
+## Weakly Supervised Learning
+
+New applications are what interest me. I built them at LinkedIn, I built them as an entrepreneur and I’ve built them as a consultant at my consultancy [Data Syndrome](http://datasyndrome.com). At my startup [Relato](http://relato.io) I spent a great deal of time using web crawlers and task workers who augmented my company database by collecting connections between companies such as partnerships, customers, competitors and investors. This helped me create an excellent lead scoring model that drove a lead generation platform - a platform that looks at who you sell to and finds other customers likely to buy your product. This involved three assets: a universe of companies I could recommend, an effective model to recommend them, and a list of customers to serve as positive examples in the training data for the lead scoring engine. Each customer got their own model, since models varied between customers. Label scarcity was a key problem for the business: people required a non-disclosure agreement or NDA to give me their customer list. This significantly slowed business development because it meant I needed an NDA in place to receive the training data. Doh!
+
+Let’s say that I’m familiar with this problem in a very personal way :) This is what got me interested in **weakly supervised learning.**
+
+Lorenzo Torresani in the [Weakly Supervised Learning chapter of Computer Vision (2016)](https://link.springer.com/referenceworkentry/10.1007%2F978-0-387-31439-6_308) defines weakly supervised learning as:
+
+<PRODUCTION NOTE: regardless of the style guide indicating an inline quotation, I want the next two quotes to be block quotes. The topics of the book deserve to be defined separately in their own blockquote.>
+
+> Weakly supervised learning is a machine learning framework where the model is trained using examples that are only partially annotated or labeled.  
+
+A related concept is called **weak supervision.** According to HazyResearch researchers Alex Ratner, Stephen Bach, Paroma Varma and Chris Ré in the blog post [Weak Supervision: The New Programming Paradigm for Machine Learning](https://hazyresearch.github.io/snorkel/blog/ws_blog_post.html), it is defined thusly:
+
+> Weak supervision is about leveraging higher-level and/or noisier input from subject matter experts (SMEs).   
+
+What does it mean to me? Weakly supervised learning provides hope for the data rich and the label poor. Which is most people.
 
 The book will explore practical applications of several methods of *weakly supervised learning* that have emerged in response to these developments. In *semi-supervised learning* an initial model trained on limited labeled data is used to label additional data, which then trains an improved final model. In *transfer learning* an existing model from a related domain is re-trained on or applied to training data from the problem domain. In *distant supervision* existing knowledge from databases and other sources is used to programmatically create low quality labels, which are combined via *weak supervision* in the form of a generative model into high quality labels for the entire dataset. I will demonstrate each strategy in the context of a deployable application.
 
 
-![](README/yZmIEopL3sUmWDj7o4Z4aQA1qpDC9vYtZ2HaBk2MEiJQn3fpiCt2DvnBDsifgNeSRJuvfwdGgEXg_fASIIv6_sWt120BQLefSMAPwgxjOBf-bjgf57qsMZ3p4dKqSPQt1pVgBOZ4N_AQK7zsvQ%204.jpg)
-![Weak Supervision: The New Programming Paradigm for Machine Learning (Ratner, Bach, Varma, Ré, et al)](https://hazyresearch.github.io/snorkel/blog/ws_blog_post.html)
+### A Matter of Taxonomy
+
+In discussing these concepts, we must choose a taxonomy.
+
+
+
+![](images/chapter_1/hernandez_weak_supervision_taxonomy.png)
+*Weak supervision and other non-standard classification problems: a taxonomy (Hernandez-González, J; Inza, I; Lozano, J. A.)*
+
+
+![](images/chapter_1/ws_mapping.png)
+[Weak Supervision: The New Programming Paradigm for Machine Learning (Ratner, Bach, Varma, Ré, et al)](https://hazyresearch.github.io/snorkel/blog/ws_blog_post.html)
 
 <REMINDER: Ask Hazy Research for permission>
 
@@ -91,8 +134,8 @@ Before the application of neural networks to language modeling, “core NLP tech
 
 In 2003, the paper Neural Probabilistic Language Model [Bengio, Ducharme, Vincent, Jauvin, 2003] demonstrated superior performance on several common NLP tasks using a distributed representation for words. A decade later, the rise of dense representations in the form of text embeddings like Word2Vec [Le, Mikolov, 2013] accelerated the development of DL methods for NLP. Text embeddings changed text encoding from a list of bits identifying the presence of words in a document under the bag-of-words model to a dense representation that describes the semantics of each word in terms of its position in a vector space where each dimension corresponds to a particular meaning [Tardy, 2017](https://www.quora.com/How-do-distributed-representation-avoid-the-curse-of-dimensionality-in-natural-language-processing-NLP/answer/Paul-Tardy). Neural networks work better with dense than with sparse representations. The chart below shows the difference between sparse and dense text feature representations.
 
-![](README/86E6CAF6-064F-47C6-B355-F8F7CC91A6B1%204.png)
-![Sparse vs. dense text encoding (Goldberg, 2015)](file://./images/intro/Sparse_vs_Dense_Embedding.png) 
+![](images/chapter_1/sparse_vs_dense_embedding.png)
+[Sparse vs. dense text encoding (Goldberg, 2015)](file://./images/intro/Sparse_vs_Dense_Embedding.png) 
 
 <REMINDER: Ask Goldberg for permission>
 
@@ -127,16 +170,19 @@ Slicing functions enable us to focus on particular subsets of data that are more
 
 ## Chapter Bibliography
 
-* Torresani Lorenzo,  [Computer Vision](https://link.springer.com/referencework/10.1007/978-0-387-31439-6), [“Weakly Supervised Learning”](https://link.springer.com/referenceworkentry/10.1007%2F978-0-387-31439-6_308), Springer, Boston, MA, USA, 2016
-* Ratner, Bach, Varma, Ré, et al, [“Weak Supervision: The New Programming Paradigm for Machine Learning”](https://hazyresearch.github.io/snorkel/blog/ws_blog_post.html), *Hazy Research*
-* Manning, Christopher D., Schiitze, Hinrich, [Foundations of Statistical Natural Language Processing](https://amzn.to/2HRDFBm), The MIT Press, Cambridge, MA, USA, 1999
+* Torresani, Lorenzo,  [Computer Vision](https://link.springer.com/referencework/10.1007/978-0-387-31439-6), [“Weakly Supervised Learning”](https://link.springer.com/referenceworkentry/10.1007%2F978-0-387-31439-6_308), Springer, Boston, MA, USA, 2016
+* Ratner, Bach, Varma, Ré; [“Weak Supervision: The New Programming Paradigm for Machine Learning”](https://hazyresearch.github.io/snorkel/blog/ws_blog_post.html), *Hazy Research*, 2017, Accessed Sept 26, 2019
+* Manning, Christopher D.; Schiitze, Hinrich, [Foundations of Statistical Natural Language Processing](https://amzn.to/2HRDFBm), The MIT Press, Cambridge, MA, USA, 1999
 * Goldberg, Yoav, [A Primer on Neural Network Models for Natural Language Processing](https://arxiv.org/abs/1510.00726), 2015
 * Theodoridis, Koutroumbas, [Pattern Recognition - 4th Edition](https://www.elsevier.com/books/pattern-recognition/theodoridis/978-1-59749-272-0), Academic Press, Millbrae, CA, USA, 2008
-* Bengio, Ducharme, Vincent, Jauvin, [A Neural Probabilistic Language Model](http://www.jmlr.org/papers/volume3/bengio03a/bengio03a.pdf), Journal of Machine Learning Research, 2003
+* Bengio, Ducharme; Vincent, Jauvin, [A Neural Probabilistic Language Model](http://www.jmlr.org/papers/volume3/bengio03a/bengio03a.pdf), Journal of Machine Learning Research, 2003
 * Le, Mikolov, [Distributed Representations of Sentences and Documents](https://cs.stanford.edu/~quocle/paragraph_vector.pdf), Google Inc, Mountain View, CA, USA, 2013
-* Konstantinos, Sechidis, Tsoumakas, Grigorios, Vlahavas, Ioannis, [On the Stratification of Multi-Label Data](On the Stratification of Multi-Label Data), Aristotle University of Thessaloniki, Thessaloniki, Geece, 2011
+* Konstantinos, Sechidis; Tsoumakas, Grigorios; Vlahavas, Ioannis, [On the Stratification of Multi-Label Data](On the Stratification of Multi-Label Data), Aristotle University of Thessaloniki, Thessaloniki, Geece, 2011
 * Wikipedia contributors, “Stack Exchange.” *Wikipedia, The Free Encyclopedia*. Wikipedia, The Free Encyclopedia, 18 Sep. 2019. Accessed 25 Sep. 2019
 * Djellel, Difallah; Filatova, Elena; Ipeirotis, Panos (2018). [Demographics and dynamics of mechanical turk workers](http://www.ipeirotis.com/wp-content/uploads/2017/12/wsdmf074-difallahA.pdf) *Proceedings of the Eleventh ACM International Conference on Web Search and Data Mining*: 135–143.
+* Desjardins, Jeff. [“How much data is generated each day?”](https://www.weforum.org/agenda/2019/04/how-much-data-is-generated-each-day-cf4bddf29f/), World Economic Forum, https://www.weforum.org/agenda/2019/04/how-much-data-is-generated-each-day-cf4bddf29f/ (accessed September 26, 2019)
+* Vanian, Jonathan. [“Here’s How Much Companies Are Spending on Artificial Intelligence”](https://fortune.com/2019/06/18/business-leaders-artificial-intelligence/), Fortune, (https://www.weforum.org/agenda/2019/04/how-much-data-is-generated-each-day-cf4bddf29f/ (accessed September 26, 2019)
+* Hernández-González, J., Inza, I., & Lozano, J. A.; Weak supervision and other non-standard classification problems: A taxonomy. Intelligent Systems Group, University of the Basque Country, Donostia, Spain, 2016
 
 # Chapter 2: Environment Setup
 In this chapter we will recreate the environment in which the book’s examples were created so that you can run them without any problems. I’ve created Conda and Virtual Environments for you to use to run the Jupyter Notebooks that contain the book’s examples.
@@ -215,7 +261,7 @@ source deactivate
 
 ### Running Jupyter
 
-![](README/example_jupyter_notebook%204.png)
+![](images/chapter_2/example_jupyter_notebook.png)
 
 [Jupyter](https://jupyter.org/) is installed as part of creating the Python environment. To run Jupyter, you can run:
 
@@ -257,7 +303,7 @@ This isn’t an obvious small data problem where supervision would be of interes
 ## Multi-label? Sort of.
 There’s another aspect of sparsity to this problem that weak supervision can help with. Each question probably qualifies for more than five tags, but five is the maximum number of tags (in the data, 100 or so posts with six tags do show up) that can be assigned to any given question. This means the data is fairly sparse, almost like a standard multi-class problem if we seek maximum coverage with our labeler. We can use weak supervision to add labels to previously labeled posts to account for additional labels that were never an option.
 
-![](README/stackoverflow_max_five_tags%204.png)
+![](images/chapter_2/stackoverflow_max_five_tags.png)
 
 *Stack Overflow limits questions to a maximum of 5 tags, regardless of how many might really apply. Here I’m asking about implementing XML-CNN, an excellent algorithm for [extreme multilevel classification](http://manikvarma.org/downloads/XC/XMLRepository.html), and the UI prevents me from adding 8 tags that all apply.*
 
@@ -335,7 +381,7 @@ The [pyspark.sql.DataFrame.toPandas](https://spark.apache.org/docs/latest/api/py
 count_df.toPandas().plot(kind='bar', x='label', y='total', figsize=(4,6))
 ```
 
-![](README/question_tag_distribution%204.png)
+![](images/chapter_2/question_tag_distribution.png)
 
 As you can see the distribution is fairly normal and symmetric, so both your average and median question has only three labels. If we can label more records for sparse tags using weak supervision, we should be able to expand the coverage of the model significantly.
 
@@ -608,7 +654,7 @@ OPTIMIZER           = 'adam'
 
 In Kim-CNN, we start by encoding the sequences using an *Embedding*, followed by a *Dropout* layer to reduce overfitting. Next we split the graph into multiple *Conv1D* layers with different widths, each followed by *MaxPool1D*. These are joined by concatenation and are intended to characterize patterns of different size sequence lengths in the documents. There follows another *Conv1D*/*GlobalMaxPool1D* layer to summarize the most important of these patterns. This is followed by flattening into a *Dense* layer and then on to the final *sigmoid* output layer. Otherwise we use *selu* throughout.
 
-![](README/kim_cnn_model_architecture%204.png)
+![](images/chapter_2/kim_cnn_model_architecture.png)
 
 <REMINDER: Ask Kim for permission to use this image before publishing!>
 
@@ -826,7 +872,8 @@ pd.DataFrame(prediction_tests)
 
 We can see from these three records that the model is doing fairly well. This tells a different story than performance metrics alone. It is so strange that most machine learning examples just compute performance and don’t actually employ the `predict()` method! At the end of the day statistical performance is irrelevant and what matters is the real world performance - which is not contained in simple summary statistics!
 
-![](README/jupyter_results%204.png)
+![](images/chapter_2/jupyter_results.png)
+*Padded/encoded sentences along with the label and predicted label in a DataFrame*
 
 
 ## Chapter Bibliography
