@@ -45,7 +45,10 @@
 # Introduction
 Welcome to *Weakly Supervised Learning*. This is a free and open source book about building artificially intelligent products using a part of the field of *machine learning* (ML) called *natural language processing* (NLP), *deep learning* (DL) and *weakly supervised learning* (WSL). WSL enables machines to learn without labeling millions of training records by hand. This book provides a how to guide for shipping deep learning models using WSL.
 
-Specifically, the book will explore practical applications of several methods of *weakly supervised learning* that have emerged in response to these developments. In *semi-supervised learning* an initial model trained on limited labeled data is used to label additional data, which then trains an improved final model. In *transfer learning* an existing model from a related domain is re-trained on or applied to training data from the problem domain. In *distant supervision* existing knowledge from databases and other sources is used to programmatically create low quality labels, which are combined via *weak supervision* in the form of a generative model into high quality labels for the entire dataset. I will demonstrate each strategy in the context of a deployable model. Then in the final chapter, we will deploy these models using [Kubeflow](https://www.kubeflow.org/docs/about/kubeflow/).
+Specifically, the book will explore practical applications of several methods of *weakly supervised learning* that have emerged in response to these developments. In *semi-supervised learning* an initial model trained on limited labeled data is used to label additional data, which then trains an improved final model. In *transfer learning* an existing model from a related domain is re-trained on or applied to training data from the problem domain. In *distant supervision* existing knowledge from databases and other sources is used to programmatically create low quality labels, which are combined via *weak supervision* in the form of a generative model into high quality labels for the entire dataset. I will demonstrate each strategy in the context of a deployable model. 
+
+## Model Management
+In addition to demonstrating these methods, the book will also cover model versioning and management. In the final chapter, we will deploy the models we’ve built using [Kubeflow](https://www.kubeflow.org/docs/about/kubeflow/). In this way the reader will learn to start with a relatively small labeled dataset (or a relatively sparse one) and create a production grade model from concept through deployment.
 
 # Chapter 1: Weakly Supervised Learning
 Welcome to the chapter length introduction to weakly supervised learning! This is the section where I give you the context that will inspire and motivate you to read the rest of this book: the overview. Right? This is a strange exercise for me, because it involves citing a great number of academic books and papers, something I’ve never done before. I have tried to keep things simple enough that a business audience might get value while still covering the material in sufficient depth. I hope this high level explanation of how we (and I mean we as in I follow along while researchers invent) got to where we are in deep learning and natural language processing serves as an introduction for some and as a worthwhile review for others. I’m a history nerd, so let’s start with some recent history.
@@ -84,7 +87,7 @@ The need for ever increasing volumes of labeled training data can be frustrating
 ## Weakly Supervised Learning
 What does all this have to do with weakly supervised learning? I’d like to explain on a personal level before getting technical.
 
-New analytics applications are what get me excited. I’ve built them my entire career. I started out in quality assurance automation and then moved into reporting/analytics and interactive visualization. Later at LinkedIn I built AI products; I was the data scientist for modeling student’s career paths for [Career Explorer](https://blog.linkedin.com/2010/10/04/linkedin-career-explorer) and I led the development and product managed [LinkedIn InMaps](https://blog.linkedin.com/2011/01/24/linkedin-inmaps), which visualized your LinkedIn network. I built them as an entrepreneur at and I’ve built them as a consultant at my consultancy [Data Syndrome](http://datasyndrome.com).
+New analytics applications are what get me excited. I’ve built them my entire career. I started out in quality assurance automation and then moved into reporting/analytics and interactive visualization. Later at LinkedIn I built AI products; I was the data scientist for modeling student’s career paths for [Career Explorer](https://blog.linkedin.com/2010/10/04/linkedin-career-explorer) and I led the development and product managed [LinkedIn InMaps](https://blog.linkedin.com/2011/01/24/linkedin-inmaps), which visualized your LinkedIn network. I built them as an entrepreneur at and I’ve built them as a consultant at my consultancy [Data Syndrome](http://datasyndrome.com). Building and writing about building data products are my life’s work so far.
 
 At my startup [Relato](http://relato.io) I spent a great deal of time using web crawlers and task workers to augment my company database by collecting connections between companies such as partnerships, customers, competitors and investors (I told Relato’s story [here](https://www.oreilly.com/ideas/relato-turking-the-business-graph)). This helped me create an excellent lead scoring model that drove a lead generation platform, which is a platform that looks at who your customers are and finds other customers likely to buy your product. This involved three assets: a universe of companies I could recommend, an effective model to recommend them, and a list of customers to serve as positive examples in the training data for the lead scoring engine. Each customer got a model trained on their customer data because models varied between customers as much as customers varied between one another. Label scarcity was a key problem for my business: companies often required a non-disclosure agreement or NDA to give me their customer list. This significantly slowed business development because it meant I needed an NDA in place to receive the training data. In the end, this was a major contributor to Relato’s demise. As Homer would say, “Doh!”
 
@@ -100,27 +103,24 @@ A related concept is called **weak supervision.** According to Stanford HazyRese
 
 > Getting labeled training data has become *the* key development bottleneck in supervised machine learning. We provide a broad, high-level overview of recent *weak supervision* approaches, where *noisier* or *higher-level* supervision is used as a more expedient and flexible way to get supervision signal, in particular from subject matter experts (SMEs). We provide a simple, broad definition of weak supervision as being comprised of one or more noisy conditional distributions over unlabeled data, and focus on the key technical challenge of unifying and modeling these sources.  
 
-Simply put: weakly supervised learning provides hope for the data rich and the label poor. In other words, most companies adopting AI strategies.
+Simply put: weakly supervised learning gives hope to the data rich and the label poor. In other words, most companies adopting AI strategies.
 
+### Types of Weakly Supervised Learning
 
+The [Snorkel](http://snorkel.org) team defined a schema for weakly supervised learning for label generation you see below. It outlines the types of that we’ll be covering in this book. These are the definitions for the work we’ll demonstrate:
 
-
-### A Matter of Taxonomy
-
-In discussing these concepts, we must choose a taxonomy.
-
-
-
-![](images/chapter_1/hernandez_weak_supervision_taxonomy.png)
-*Weak supervision and other non-standard classification problems: a taxonomy (Hernandez-González, J; Inza, I; Lozano, J. A.)*
-
+* *Traditional supervised learning* is when you hand label the entire dataset and then train a model on this labeled data. This is the traditional method of doing things. As we’ve seen above, this is very expensive. The rest of the types try to improve on this type of learning for label poor, data rich people like ourselves.
+* *Transfer learning* is when you train a model for one task and then apply that model to a related task. In zero-shot learning, the model isn’t trained on the specific task at hand, instead what is has learned generalizes to that problem. Transfer learning can also involve additional task-specific training. Transfer learning is commonly used for text embeddings, where a single large model for one or more languages can generalize to encode text for a variety of different application domains.
+* *Semi-supervised learning* is when you train a simple model by labeling a subset of data in order to classify the other data with labels that are then used to train the final model.
+* *Distant supervision* is an information extraction technique when you use an external knowledge base to generate labels for records that match certain patterns defined using facts in the knowledge base [Mintz, Bills, Snow, Jurafsky, 2005].
+* *Weak Supervision* is when you acquire and combine multiple weak labels for records using a variety of methods and then combine them to create strong labels for your final model to use. Weak labels might come from heuristics via *data programming*, distant supervision, constraints on the model’s output, or the expected distribution of the labels .
+* *Active Learning* uses a model to make predictions and then routes the most interested input records to expert human labelers who clarify their labels. This can be used when prediction confidence is low or when a certain slice of data is unusual or of particular interest to identify and remedy corner cases where the model performs poorly and needs to improve. We won’t be covering active learning in this book, but I will provide resources for you to continue your weakly supervised learning adventure through active learning.
 
 ![](images/chapter_1/ws_mapping.png)
 [Weak Supervision: The New Programming Paradigm for Machine Learning (Ratner, Bach, Varma, Ré, et al)](https://hazyresearch.github.io/snorkel/blog/ws_blog_post.html)
 
-<REMINDER: Ask Hazy Research for permission>
+Each of these methods with the exception of active learning will be explained and demonstrated in Python in its own chapter to develop or enhance models built with Stack Overflow data.
 
-In addition to demonstrating these methods, the book will also cover model versioning and management. The reader will learn to start with a relatively small labeled dataset and create a production grade model from concept through deployment.
 
 # Statistical Natural Language Processing
 
@@ -149,27 +149,6 @@ Convolutional Neural Networks are used for NLP tasks where local features are su
 
 Recurrent Neural Networks are used for NLP tasks where features need to be aware of a broader context within a sequence of words which is stored as internal state in each neuron and referenced in each output decision. 
 
-# Snorkel
-[Snorkel](https://www.snorkel.org/) is a [software project](https://github.com/snorkel-team/snorkel) originally from the Hazy Research group at Stanford University enabling the practice of *weak supervision*.  The project has an excellent [Get Started](https://www.snorkel.org/get-started/) page, and I recommend you spend some time working the [tutorials](https://github.com/snorkel-team/snorkel-tutorials) before proceeding beyond this chapter. 
-
-Snorkel implements a generative model that accepts a matrix of weak labels for records in your training data and produces strong labels by learning the relationships between these weak labels.
-
-## Labeling Functions (LFs)
-
-A labeling function is a deterministic function used to label data as belonging to one class or another. They produce weak labels that in combination, through Snorkel’s generative models, can be used to generate strong labels for unlabeled data.
-
-## Preprocessors
-
-A preprocessor is a reusable function that maps a data point to another data point. It can be applied to the data before labeling functions so they can make use of external models or enable new labeling functions to work. For example, an address could be transformed into GPS coordinates, clustered, and a labeling function could be created based on the distribution of labels in terms of cluster membership: clusters with significantly more of one label could be labeled with a class, otherwise the LF could abstain.
-
-## Data Augmentation with Transformation Functions (TFs)
-
-Data augmentation is the use of functions that preprocess and transform the data so as to diversify the each data point and create a robust model. Transformation functions implement data augmentation in Snorkel. TFs take existing records and transform them into new records to enhance the label model.
-
-## Slicing Functions (SFs)
-
-Slicing functions enable us to focus on particular subsets of data that are more important to real world performance than others. For example part of a corpus of documents may be in a domain we’re familiar with, so we can gauge performance better by monitoring that slice of the data. Or our application and its data might group naturally into a few broad categories and we’re interested in monitoring them all independently.
-
 ## Chapter Bibliography
 
 * Torresani, Lorenzo,  [Computer Vision](https://link.springer.com/referencework/10.1007/978-0-387-31439-6), [“Weakly Supervised Learning”](https://link.springer.com/referenceworkentry/10.1007%2F978-0-387-31439-6_308), Springer, Boston, MA, USA, 2016
@@ -185,6 +164,9 @@ Slicing functions enable us to focus on particular subsets of data that are more
 * Desjardins, Jeff. [“How much data is generated each day?”](https://www.weforum.org/agenda/2019/04/how-much-data-is-generated-each-day-cf4bddf29f/), World Economic Forum, https://www.weforum.org/agenda/2019/04/how-much-data-is-generated-each-day-cf4bddf29f/ (accessed September 26, 2019)
 * Vanian, Jonathan. [“Here’s How Much Companies Are Spending on Artificial Intelligence”](https://fortune.com/2019/06/18/business-leaders-artificial-intelligence/), Fortune, (https://www.weforum.org/agenda/2019/04/how-much-data-is-generated-each-day-cf4bddf29f/ (accessed September 26, 2019)
 * Hernández-González, J., Inza, I., & Lozano, J. A.; Weak supervision and other non-standard classification problems: A taxonomy. Intelligent Systems Group, University of the Basque Country, Donostia, Spain, 2016
+* Mintz, M; Bills, S; Snow, R; Jurafsky, D; [Distant supervision for relation extraction without labeled data](https://web.stanford.edu/~jurafsky/mintz.pdf). Stanford University, Stanford, CA, USA, 2009
+* Ratner, A; Bach, S; Ehrenberg, H; Fries, J; Wu, S; Ré, C; [Snorkel: Rapid Training Data Creation with Weak Supervision](https://arxiv.org/abs/1711.10160). Stanford University, Stanford, CA, USA, 2017
+* 
 
 # Chapter 2: Environment Setup
 In this chapter we will recreate the environment in which the book’s examples were created so that you can run them without any problems. I’ve created Conda and Virtual Environments for you to use to run the Jupyter Notebooks that contain the book’s examples.
@@ -263,7 +245,7 @@ source deactivate
 
 ### Running Jupyter
 
-![](images/chapter_2/example_jupyter_notebook.png)
+![](images/chapter_1/example_jupyter_notebook.png)
 
 [Jupyter](https://jupyter.org/) is installed as part of creating the Python environment. To run Jupyter, you can run:
 
@@ -274,22 +256,44 @@ jupyter notebook &
 
 Then visit [http://localhost:8888](http://localhost:8888) and select the chapter file you want to read and run.
 
-## The Dataset
-Stack Overflow was started in 2008 by as a website 
+## Stack Overflow
+In this book we’ll be focusing on building applications using data from the computer programming question and answer website [Stack Overflow](http://stackoverflow.com). Stack Overflow was started in 2008 by Joel Atwood and Joel Sposky. In the last decade the site has grown to become the preeminent resource for documentation for programmers and has expanded to include many other technical and non-technical topic areas through the broader [Stack Exchange](https://stackexchange.com/) network of websites. According to Stack Overflow CTO David Fullerton in the January, 2019 blog post, [*State of the Stack 2019*](https://stackoverflow.blog/2019/01/18/state-of-the-stack-2019-a-year-in-review/), “Stack Overflow exists to help everyone who codes learn and share their knowledge.” David went on to describe Stack Overflow’s growth that years as having:
 
-Stack Exchange publishes their entire database interactively via the [Stack Exchange Data Explorer](https://data.stackexchange.com/) or in bulk from the [internet archive](https://archive.org/download/stackexchange). This is not small data. The posts from the September 2, 2019 dump are 13.9GB compressed, and are stored as a single XML file with one tag for each post.
+> * Across all of [Stack Overflow](https://stackoverflow.com/?__hstc=188987252.6ee93f0e8f5a79ad8a59e654ee7dd7b6.1569690294646.1569690294646.1569690294646.1&__hssc=188987252.1.1569690294646&__hsfp=2450982592) and the [Stack Exchange network](https://stackexchange.com/sites) , we saw 9+ billion pageviews from 100+ million users over the course of the year.   
+> * Stack Overflow alone had over 2.5 million answers and 2 million new questions, with over 1.6 million new users joining the community  
 
-```
-stackoverflow.com-Badges.7z 02-Sep-2019 13:10 233.9M
-stackoverflow.com-Comments.7z 02-Sep-2019 13:22 4.1G
-stackoverflow.com-PostHistory.7z 03-Sep-2019 23:59 24.4G
-stackoverflow.com-PostLinks.7z 03-Sep-2019 16:11 82.1M
-stackoverflow.com-Posts.7z 04-Sep-2019 14:38 13.9G
-stackoverflow.com-Tags.7z 03-Sep-2019 16:11 787.6K
-stackoverflow.com-Users.7z 03-Sep-2019 16:27 477.2M
-stackoverflow.com-Votes.7z 03-Sep-2019 16:34 1.0G
+According to Stack Overflow co-founder Jeff Atwood in 2010, “Every question on Stack Overflow, or any other Stack Exchange site,**must be tagged with at least one tag**.” This has resulted in a large *folksonomy* of user-supplied tags that categorize posts. This contrasts with a more ‘official’ taxonomy where tags are defined by experts up front in that a folksonomy is freely defined by users as they use the website. The legitimacy of a tag is based on its frequency of use to categorize questions. Folksonomies have two primary benefits for information retrieval: they act as features to enhance search engine and recommender system performance on queries and recommendations related to a given tag and they organize posts into browsable categories with their own web pages listing questions for that tag. 
+
+Stack Overflow’s tag page has a tag search box, which enables users to filter tags by topic and find posts labeled with individual tags for learning by topic. Pictured below are the tag search results for tags including the word *data*, which might be a good starting point for learning by a budding data scientist.
+
+![](images/chapter_2/stackoverflow_tag_page.png)
+*Tag page for programming questions involving ‘data’ on stackoverflow.com*
+
+### The Stack Overflow Dataset
+
+Stack Exchange publishes their entire database interactively via the web query engine [Stack Exchange Data Explorer](https://data.stackexchange.com/) or via bulk download from the [internet archive](https://archive.org/download/stackexchange). This is not small data. The posts from the September 2, 2019 dump are 13.9GB compressed, 69GB uncompressed and are stored as a single XML file with one tag for each post.
+
+The 44 gigabytes of compressed data consists of user badges (which represent prizes or achievements for good behavior), comments on question/answer posts, the edit history of a post, the hyperlinks within posts, the actual question/answer posts, the tags associated with each question (answers have no tags), user profiles (each user has a new profile for each Stack Exchange site as well as a master profile), and user up/down votes on posts and comments.
+
+```bash
+stackoverflow.com-Badges.7z      02-Sep-2019 13:10   233.9M
+stackoverflow.com-Comments.7z    02-Sep-2019 13:22     4.1G
+stackoverflow.com-PostHistory.7z 03-Sep-2019 23:59    24.4G
+stackoverflow.com-PostLinks.7z   03-Sep-2019 16:11    82.1M
+stackoverflow.com-Posts.7z       04-Sep-2019 14:38    13.9G
+stackoverflow.com-Tags.7z        03-Sep-2019 16:11   787.6K
+stackoverflow.com-Users.7z       03-Sep-2019 16:27   477.2M
+stackoverflow.com-Votes.7z       03-Sep-2019 16:34     1.0G 
 ```
 *Files for English Stack Overflow dump for September 3rd, 2019*
+
+As this is a book about statistical natural language processing, we’ll be focusing on the posts themselves, which consist of 69GB of uncompressed XML.
+
+```bash
+Posts.xml  						01-Sep-2019 20:37	  69.0G 
+```
+
+A raw post record looks like:
 
 ```xml
 <U+FEFF><?xml version="1.0" encoding="utf-8"?>
@@ -300,10 +304,12 @@ stackoverflow.com-Votes.7z 03-Sep-2019 16:34 1.0G
 ```
 *Top/bottom of Stack Overflow dump file Posts.xml*
 
-This isn’t an obvious small data problem where supervision would be of interest, since the original dataset is over ten gigabytes and millions of records. Our stratified sample of questions is half a gigabyte compressed and consists of 1.5 million questions that a classifier should have no problem tagging. As we’ll see, this is the case for frequent tags but when we try to extend coverage to less frequent tags, we run into sparsity and imbalanced data that create problems which make weak supervision attractive. We’ll be using weakly supervised learning to improve the model’s breadth rather than just its categorical accuracy on all tags. This process will use transfer learning, semi-supervised learning, weak supervision, distant supervision, and the [Snorkel](https://www.snorkel.org/) software package.
+*Gee whiz, since all posts have at least one label… is this data a good fit for a book on weakly supervised learning? We are definitely data rich, but are we label poor?*
+
+In profiling the data, this isn’t an obvious small data problem where weakly supervised learning would be of interest, since the original dataset of questions and answers is over ten gigabytes compressed and consists of millions of records. Our stratified sample of questions is half a gigabyte in column compressed [Parquet](https://parquet.apache.org/) format and consists of 1.5 million questions that a convolutional neural network should have no problem classifying into tag labels. In fact there are several examples of Stack Overflow taggers on the web. As we’ll see, this is the case for frequent tags but when we try to extend coverage to less frequent tags, we run into sparsity and imbalanced data that create problems which make weak supervision attractive. We’ll be using weakly supervised learning to improve the model’s breadth rather than just its categorical accuracy on all tags. This process will use transfer learning, semi-supervised learning, weak supervision, distant supervision, and the [Snorkel](https://www.snorkel.org/) software package.
 
 ## Multi-label? Sort of.
-There’s another aspect of sparsity to this problem that weak supervision can help with. Each question probably qualifies for more than five tags, but five is the maximum number of tags (in the data, 100 or so posts with six tags do show up) that can be assigned to any given question. This means the data is fairly sparse, almost like a standard multi-class problem if we seek maximum coverage with our labeler. We can use weak supervision to add labels to previously labeled posts to account for additional labels that were never an option.
+There’s another aspect of sparsity to this problem that weak supervision can help with. Each question probably qualifies for more than five tags, but five is the maximum number of tags (in the data, 120 or so posts with six tags do show up) that can be assigned to any given question. This means the data is fairly sparse, almost like a standard multi-class problem if we seek maximum coverage with our labeler. We can use weak supervision to add labels to previously labeled posts to account for additional labels that were never an option.
 
 ![](images/chapter_2/stackoverflow_max_five_tags.png)
 
@@ -400,17 +406,21 @@ There are several options for addressing imbalanced data:
 
 This is very simple for a binary or multi class classification problem. For multi-label problems, things are more complicated. It is necessary to implement an iterative technique, whereby the data is balanced given the current worst imbalance, it is re-measured, and this process is repeated. Such a method is outlined in [On the Stratification of Multi-Label Data](http://lpis.csd.auth.gr/publications/sechidis-ecmlpkdd-2011.pdf) [Sechidis, Tsoumakas, Vlahavas, 2011]
 
-### ETL in PySpark
+### Extract Transform Load (ETL) in PySpark
 
-Before we can work with the data we need to trim it down to size and change the format to something more efficient. We’ll be using the non-code text from the post initially, and the labels. 
+Before we can work with the data we need to trim it down to size and change the format to something more efficient. We’ll be using the non-code text from the post initially and the labels. 
 
-#### Tools?
-
-At first I used pandas for ETL but quickly ran into memory problems. Dask had the same issue or would freeze up, so Spark seemed the way to go.
+We’ll use PySpark for ETL of the raw data and then pandas to process it thereafter. During development I ended up moving as much text preprocessing as possible into PySpark because I ran into extremely slow performance and inadequate memory problems when performing it in pandas. Dask had the same issue or would freeze up, so Spark seemed the way to go.
 
 ### Parquet Format
 
-The data comes in a series of files: as a single large XML document , and this is an incredibly slow format to compute with in Spark. First I uncompressed the data from 7zip format and then LZO compressed it for fast processing. Then I ran 
+The data comes in a series of files: as a single large XML document , and this is an incredibly slow format to compute with in Spark. First I uncompressed the data from 7zip format, which produced a single XML file called *Posts.xml* and then I LZO compressed it for fast processing. 
+
+```bash
+
+```
+
+Then I used PySpark to convert the data from XML to Parquet. Parquet is a columnar storage format which is much more efficient for loading and storing columnar data than XML.
 
 ```python
 posts_df = spark.read.format('xml').options(rowTag='row').options(rootTag='posts')\
@@ -418,6 +428,8 @@ posts_df = spark.read.format('xml').options(rowTag='row').options(rootTag='posts
 posts_df.write.mode('overwrite')\
         .parquet('data/stackoverflow/08-05-2019/Posts.df.parquet')
 ```
+
+
 
 ## Building a Tag Classifier Model
 We treat this as a multi-class, multi-label problem. 
@@ -876,8 +888,43 @@ We can see from these three records that the model is doing fairly well. This te
 
 ![](images/chapter_2/jupyter_results.png)
 
-
 ## Chapter Bibliography
+
 * Liu, Chang, Wu, Yang, [Deep Learning for Extreme Multi-label Text Classification](http://nyc.lti.cs.cmu.edu/yiming/Publications/jliu-sigir17.pdf), Carnegie Melon University, Pittsburgh, PA, USA, 2017
+* Fullerton, David. [“State of the Stack 2019: A Year in Review”](https://stackoverflow.blog/2019/01/18/state-of-the-stack-2019-a-year-in-review/), The Stackoverflow Blog, https://stackoverflow.blog/2019/01/18/state-of-the-stack-2019-a-year-in-review/ (September 28, 2019)
+* Atwood, Jeff. [Tag Folksonomy and Tag Synonyms](https://stackoverflow.blog/2010/08/01/tag-folksonomy-and-tag-synonyms/), The Stackoverflow Blog, https://stackoverflow.blog/2010/08/01/tag-folksonomy-and-tag-synonyms/ (September 28, 2019)
+
+# Chapter 3: Transfer Learning
+In this chapter we will employ transfer learning to enhance our model by employing pre-computed embeddings for text and source code.
+
+
+
+# Chapter 4: Weak Supervision
+## Snorkel
+[Snorkel](https://www.snorkel.org/) is a [software project](https://github.com/snorkel-team/snorkel) originally from the Hazy Research group at Stanford University enabling the practice of *weak supervision*.  The project has an excellent [Get Started](https://www.snorkel.org/get-started/) page, and I recommend you spend some time working the [tutorials](https://github.com/snorkel-team/snorkel-tutorials) before proceeding beyond this chapter. 
+
+Snorkel implements a generative model that accepts a matrix of weak labels for records in your training data and produces strong labels by learning the relationships between these weak labels.
+
+### Labeling Functions (LFs)
+
+A labeling function is a deterministic function used to label data as belonging to one class or another. They produce weak labels that in combination, through Snorkel’s generative models, can be used to generate strong labels for unlabeled data.
+
+### Preprocessors
+
+A preprocessor is a reusable function that maps a data point to another data point. It can be applied to the data before labeling functions so they can make use of external models or enable new labeling functions to work. For example, an address could be transformed into GPS coordinates, clustered, and a labeling function could be created based on the distribution of labels in terms of cluster membership: clusters with significantly more of one label could be labeled with a class, otherwise the LF could abstain.
+
+### Data Augmentation with Transformation Functions (TFs)
+
+Data augmentation is the use of functions that preprocess and transform the data so as to diversify the each data point and create a robust model. Transformation functions implement data augmentation in Snorkel. TFs take existing records and transform them into new records to enhance the label model.
+
+### Slicing Functions (SFs)
+
+Slicing functions enable us to focus on particular subsets of data that are more important to real world performance than others. For example part of a corpus of documents may be in a domain we’re familiar with, so we can gauge performance better by monitoring that slice of the data. Or our application and its data might group naturally into a few broad categories and we’re interested in monitoring them all independently.
+
+
+### Chapter Bibliography
+
+* Snorkel
+
 
 
