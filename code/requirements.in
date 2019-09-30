@@ -18,8 +18,9 @@ requests
 s3fs
 seaborn
 scikit-learn
-snorkel
-# snorkel-metal
+shap
+# snorkel
+git+git://github.com/rjurney/snorkel.git@snorkel-1475#egg=snorkel
 spacy
 # tensorboard
 # tensorflow-gpu==2.0.0rc0
