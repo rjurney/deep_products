@@ -23,7 +23,7 @@ shap
 git+git://github.com/rjurney/snorkel.git@snorkel-1475#egg=snorkel
 spacy
 # tensorboard
-# tensorflow-gpu==2.0.0rc0
+tensorflow-gpu==2.0.0rc2
 tensorflow-hub==0.5.0
 textblob
 texttable
