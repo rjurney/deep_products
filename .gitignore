@@ -1,2 +1,4 @@
 code/data
 .DS_Store
+.vscode
+code/venv
