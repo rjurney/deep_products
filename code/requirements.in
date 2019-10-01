@@ -1,7 +1,6 @@
 boto3
 beautifulsoup4
-# cupy-cuda100
-findspark
+cupy-cuda100
 frozendict
 gensim
 gpustat
@@ -19,13 +18,11 @@ s3fs
 seaborn
 scikit-learn
 shap
-# snorkel
-git+git://github.com/rjurney/snorkel.git@snorkel-1475#egg=snorkel
+snorkel==0.9.1
 spacy
-# tensorboard
 tensorflow-gpu==2.0.0rc2
 tensorflow-hub==0.5.0
 textblob
 texttable
-tqdm
+torch==1.1.0
 wandb
