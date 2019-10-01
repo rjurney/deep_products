@@ -3,7 +3,8 @@
 
 #  Table of Contents
 
-1. Chapter 1: Introduction
+
+1. Chapter 1: Weakly Supervised Learning
 	1. Statistical Natural Language Processing
 	2. Snorkel
 	3. Transfer Learning
@@ -45,26 +46,84 @@
 # Introduction
 Welcome to *Weakly Supervised Learning*. This is a free and open source book about building artificially intelligent products using a part of the field of *machine learning* (ML) called *natural language processing* (NLP), *deep learning* (DL) and *weakly supervised learning* (WSL). WSL enables machines to learn without labeling millions of training records by hand. This book provides a how to guide for shipping deep learning models using WSL.
 
-Specifically, the book will explore practical applications of several methods of *weakly supervised learning* that have emerged in response to these developments. In *semi-supervised learning* an initial model trained on limited labeled data is used to label additional data, which then trains an improved final model. In *transfer learning* an existing model from a related domain is re-trained on or applied to training data from the problem domain. In *distant supervision* existing knowledge from databases and other sources is used to programmatically create low quality labels, which are combined via *weak supervision* in the form of a generative model into high quality labels for the entire dataset. I will demonstrate each strategy in the context of a deployable model. 
+## What is weakly supervised learning?
+
+This book will explore practical applications of several methods of *weakly supervised learning* that have emerged in response to the high cost of labeling big data. In *semi-supervised learning* an initial model trained on limited labeled data is used to label additional data, which then trains an improved final model. In *transfer learning* an existing model from a related domain is re-trained on or applied to training data from the problem domain. In *distant supervision* existing knowledge from databases and other sources is used to programmatically create low quality labels, which are combined via *weak supervision* in the form of a generative model into high quality labels for the entire dataset. I will demonstrate each strategy in the context of a deployable model. 
+
+## Who this book is for
+
 
 ## Model Management
 In addition to demonstrating these methods, the book will also cover model versioning and management. In the final chapter, we will deploy the models we’ve built using [Kubeflow](https://www.kubeflow.org/docs/about/kubeflow/). In this way the reader will learn to start with a relatively small labeled dataset (or a relatively sparse one) and create a production grade model from concept through deployment.
 
 # Chapter 1: Weakly Supervised Learning
-Welcome to the chapter length introduction to weakly supervised learning! This is the section where I give you the context that will inspire and motivate you to read the rest of this book: the overview. Right? This is a strange exercise for me, because it involves citing a great number of academic books and papers, something I’ve never done before. I have tried to keep things simple enough that a business audience might get value while still covering the material in sufficient depth. I hope this high level explanation of how we (and I mean we as in I follow along while researchers invent) got to where we are in deep learning and natural language processing serves as an introduction for some and as a worthwhile review for others. I’m a history nerd, so let’s start with some recent history.
+Welcome to chapter one of weakly supervised learning! This is the section where I give you the context that will inspire and motivate you to read the rest of this book: the overview. Right? This is a strange exercise for me, because this is a highly technical topic and I need to summarize it clearly and concisely. So it involves citing a great number of academic books and papers, something I’ve never done before. I have tried to keep things simple enough that a business audience might get value from it while still covering the material in sufficient depth that it prepares readers and students of the class for the rest of the book. I hope this high level explanation of how we (and I mean we as in I follow along after real researchers invent) got to where we are in deep learning and statistical natural language processing serves as an introduction for some and as a worthwhile review for others.
 
-## Situational Outlook
+I’m a history nerd, so let’s start with some recent history.
+
+# Statistical Natural Language Processing
+*An empiricist approach to NLP suggests that we can learn the complicated and extensive structure by specifying an appropriate general language model, and then inducing the values of parameters by applying statistical, pattern recognition and machine learning methods to a large amount of language use.*
+
+*—Foundations of Natural Language Processing (1997)*
+
+Statistical Natural Language Processing (NLP)  is a field in which the structure of language is analyzed using statistical methods to learn a language model describing the detailed structure of natural language [Manning, Schütze, 1999]. Such statistical language models are used to automate the processing of text data in tasks including parsing sentences to extract their grammatical structure, extracting entities from documents, classifying documents into categories, ranking documents numerically, summarizing documents, answering questions, translating documents from one language to another and others. 
+
+This book does not contain an introduction to natural language processing. For that I recommend *Foundations of Natural Language Processing* by Christopher D. Manning and Hinrich Schütze for a theoretical introduction and [*Natural Language Processing with Python*]([NLTK Book]https://www.nltk.org/book/) for more practical skills. What I will do is to offer a brief explanation of the role of various network models in this book.
+
+## Encoding Text
+
+Before the application of neural networks to language modeling, bag of words encoding was used to convert words to matrix representations of documents. Le and Mikolov (2013) noted that bag of words feature encoding loses word ordering as well as the semantics of words. They also produced very sparse matrices. Before neural architectures were applied to NLP, “core NLP techniques were dominated by machine-learning approaches that used linear models such as support vector machines or logistic regression, trained over very high dimensional yet very sparse feature vectors.” [Goldberg, 2015].
+
+The primary challenge in the performance of these models was the *curse of dimensionality*, under which bag-of-words representations transformed to matrices via one-hot-encoding suffered from statistical insignificance across the deeply nested, high dimensional space in which they were encoded. Pairs of points once divergent become equidistant as more and more dimensions are added, so records appear more similar and there is not enough signal for an algorithm to work well [Theodoridis, Koutroumbas, 2008]. This limited the performance of models across much of the field of natural language processing.
+
+![](README/curse_of_dimensionality.png)
+<REMINDER: Image support, add 3D part>
+
+In 2003, the paper Neural Probabilistic Language Model [Bengio, Ducharme, Vincent, Jauvin, 2003] demonstrated superior performance on several common NLP tasks using a distributed representation for words. A decade later, the rise of dense representations in the form of text embeddings such as Word2Vec [Le, Mikolov, 2013] accelerated the development of DL methods for NLP by offering an encoding method who’s output didn’t suffer from the curse of dimensionality because it encoded each word in a space with a latent semantic space reduced number of dimensions. Text embeddings changed text encoding from a list of bits identifying the presence of words in a document under the bag-of-words model to a dense representation that describes the semantics of each word in terms of its position in a vector space where each dimension corresponds to a particular meaning [Tardy, 2017](https://www.quora.com/How-do-distributed-representation-avoid-the-curse-of-dimensionality-in-natural-language-processing-NLP/answer/Paul-Tardy). Neural networks work better with dense than with sparse representations because they take advantage of the complex signal in the underlying language this encoding exposes. The chart below shows the difference between sparse and dense text feature representations.
+
+![](README/sparse_vs_dense_embedding.png)
+[Sparse vs. dense text encoding (Goldberg, 2015)](https://arxiv.org/abs/1510.00726)  
+
+<REMINDER: Ask Goldberg for permission>
+
+Word and character embeddings are the most common method of feature encoding for deep networks using text. Since Word2Vec many word embedding methods have emerged such as GloVe and [Elmo](https://tfhub.dev/google/elmo/2). They appear as the first step of most networks in the field of NLP.  We’ll be using them throughout the book. We’ll also use text and program source code embeddings during the chapter on *transfer learning*.
+
+![](README/young_embedding_semantics.png)
+
+## Convolutional Neural Networks
+
+One dimensional Convolutional Neural Networks (CNNs) are used for NLP tasks where local features are sufficient and it doesn’t matter where in the document they appear in relation to one another. Depending on the kernel size this may involve n-grams of different size to characterize features of different size. “CNNs have the ability to extract salient n-gram features from the input sentence to create an informative latent semantic representation of the sentence for downstream tasks.” [Young, Hazarik, Pori, Cambri, 2018] 
+
+Convolutional layers use randomly initialized kernels that result in their describing different features among different regions of the text in combination with pooling layers.
+
+> Firstly, max pooling provides a fixed-length output which is generally required for classification. Thus, regardless the size of  
+> the filters, max pooling always maps the input to a fixed dimension of outputs. Secondly, it reduces the output’s dimensionality  
+> while keeping the most salient n-gram features across the whole sentence. This is done in a translation invariant manner where  
+> each filter is now able to extract a particular feature (e.g., negations) from anywhere in the sentence and add it to the final  
+> sentence representation.  
+>   
+> — Recent Trends in Deep Learning Based Natural Language Processing by Young, Hazarik, Pori, Cambri (2018)  
+
+The most common application of 1D CNNs is document classification, and in [Chapter 2](#Chapter 2: Setup) we will build a Stack Overflow tagging classifier using them. As we’ll see when we investigate the workings of our convolutional models using LIME and SHAP, the most important signal for classifying documents are marker words and phrases common to documents of a given type and infrequent in the corpus overall. 
+
+![](README/D9FB810B-3009-40FE-9EAD-A86258463358.png)
+
+## Recurrent Neural Networks
+
+Recurrent Neural Networks are used for NLP tasks where features need to be aware of a broader context within a sequence of words which is stored as internal state in each neuron and referenced in each output decision. 
+
+## The Labeling Problem
 
 Since deep learning became state of the art in several areas in 2011/12, deep networks have rapidly improved to enable new applications with unprecedented performance driven by unstructured data to proliferate in research and industry. Deep learning is able to pickup complex, non-linear patterns in unstructured data to achieve never before seen levels of performance in predictive analytics. Unstructured data tends to dwarf structured data in size: many pages of text instead of columnar data, hours of audio instead of text, images instead of descriptions, video instead of images. And these algorithms are hungry: up to millions of unstructured records are required to achieve good performance on many tasks, and this increases with the sophistication of the task. While the open availability of large datasets and models based on them has helped feed networks, much of the work of building machine learning applications is now centered around data collection.
 
 Raw data alone however, is not enough. While unsupervised learning is increasingly powerful and the most sophisticated language models now work this way, most end applications involve supervised learning. Supervised learning requires labeled datasets, and labeling data is very expensive or even impossible. Dave McCrory, who as VP of Software Engineering at GE Digital developed AI applications for an array of industries, recently told me, “For medical diagnosis, hand labeling large numbers of MRIs by a doctor isn’t just expensive, it’s impossible. A radiologist will not label more than about a thousand records before he refuses to do more.”  Work on machine learning products now involves expensive and time consuming curation of the labeled datasets that drive the models that drive products. The possession of strategic datasets is often a prerequisite for product innovation. This creates an enormous barrier, the cold start problem, to solving many problems.
 
-![](images/chapter_1/labeling_data_photo_of_me.png)
+![](README/labeling_data_photo_of_me.png)
 *The author modeling shark behavior by showing off in his new wetsuit, before and after labeling. Can you spot the error? It’s subtle :)*
 
 Curation isn’t limited to data - companies now manage large workforces for hand labeling data. “Mechanical turks” or task workers have to be rigorously selected and trained as well. Some companies and products - such as Amazon’s Mechanical Turk - create elaborate systems of tests to qualify task workers for a set of labeling tasks. A user might be required to have a certain minimum accuracy score on a set of standard tests or to achieve a certain level of performance across multiple metrics on real world tasks. Passing these tests represents a serious investment of time for both the worker and the company, and the process is incredibly competitive globally.
 
-![](images/chapter_1/mechanical_turk_templates.png)
+![](README/mechanical_turk_templates.png)
 *Templates for language tasks on Mechanical Turk*
 
 At any given moment there are over 100,000 workers using the Mechanical Turk platform [Djellel, Difallah; Filatova, Elena; Ipeirotis, Panos, 2018], and each worker’s labels are compared to known good results (also known as “gold standard data”) or several other workers’ results on the same task to determine their performance. This system can be brutal because abstracted behind a programmatic API, task workers are intelligent human beings performing tasks that are mindless for the end user (is this a cat? Is this a stoplight?) who is primarily tasked with labeling data because he or she lacks economic opportunity compared to the hiring party. Some companies recruit and pay task workers hourly through websites such as UpWork, others hire them directly in an office environment. 
@@ -73,7 +132,7 @@ Tasks issued to workers hired by both methods of recruitment are becoming increa
 
 Sophisticated software platforms such as reCAPTCHA and startups selling them have arisen to try to reduce labeling costs, an indication of the scale of the problem. Often these systems are built into features of products, for example consumer internet websites. HCaptcha is a startup with a product that enables website owners to get paid to employ HCaptcha’s CAPTCHA systems to label their customers’ data. The cost of acquiring labeled training data is otherwise so high that so far it is the major consumer internet players who have dominated the space because data collection is built into their products. This has also led to the co-development of the sophisticated infrastructure driving big data, which consumer internet companies had first (after science) and which they have productized as the leaders of the cloud computing market. 
 
-![](images/chapter_1/hcaptcha_demo_one.png)
+![](README/hcaptcha_demo_one.png)
 *Demonstration of HCaptcha, a product from Intuition Machines which pays website owners in its own crypto coin to solve data labeling puzzles*
 
 Investor and veteran data scientist Pete Skomoroch said in 2018, “Without large amounts of good raw and labeled training data, solving most AI problems is not possible. Acquiring the data is harder to speed up. The best companies have data collection built into [their] product [and user experience] and get AI training data from their users.” He went on to say in 2019, “Data labeling is a good proxy for whether machine learning is cost effective for a problem. If you can build labeling into normal user activities you track like Facebook, Google and Amazon consumer applications you have a shot. Otherwise, you burn money paying for labeled data. Many people still try to apply machine learning on high profile problems without oxygen, and burn lots of money in the process without solving them.” (Josh Wills, a self-described idiot, responded with, “I want a quote in the book,” and he thusly received).
@@ -103,7 +162,7 @@ A related concept is called **weak supervision.** According to Stanford HazyRese
 
 > Getting labeled training data has become *the* key development bottleneck in supervised machine learning. We provide a broad, high-level overview of recent *weak supervision* approaches, where *noisier* or *higher-level* supervision is used as a more expedient and flexible way to get supervision signal, in particular from subject matter experts (SMEs). We provide a simple, broad definition of weak supervision as being comprised of one or more noisy conditional distributions over unlabeled data, and focus on the key technical challenge of unifying and modeling these sources.  
 
-Simply put: weakly supervised learning gives hope to the data rich and the label poor. In other words, most companies adopting AI strategies.
+*Simply put: weakly supervised learning gives hope to the data rich and the label poor. In other words, most companies adopting AI strategies.*
 
 ### Types of Weakly Supervised Learning
 
@@ -116,38 +175,10 @@ The [Snorkel](http://snorkel.org) team defined a schema for weakly supervised le
 * *Weak Supervision* is when you acquire and combine multiple weak labels for records using a variety of methods and then combine them to create strong labels for your final model to use. Weak labels might come from heuristics via *data programming*, distant supervision, constraints on the model’s output, or the expected distribution of the labels .
 * *Active Learning* uses a model to make predictions and then routes the most interested input records to expert human labelers who clarify their labels. This can be used when prediction confidence is low or when a certain slice of data is unusual or of particular interest to identify and remedy corner cases where the model performs poorly and needs to improve. We won’t be covering active learning in this book, but I will provide resources for you to continue your weakly supervised learning adventure through active learning.
 
-![](images/chapter_1/ws_mapping.png)
+![](README/ws_mapping.png)
 [Weak Supervision: The New Programming Paradigm for Machine Learning (Ratner, Bach, Varma, Ré, et al)](https://hazyresearch.github.io/snorkel/blog/ws_blog_post.html)
 
-Each of these methods with the exception of active learning will be explained and demonstrated in Python in its own chapter to develop or enhance models built with Stack Overflow data.
-
-
-# Statistical Natural Language Processing
-
-*An empiricist approach to NLP suggests that we can learn the complicated and extensive structure by specifying an appropriate general language model, and then inducing the values of parameters by applying statistical, pattern recognition and machine learning methods to a large amount of language use.*
-
-*—Foundations of Natural Language Processing*
-
-Statistical Natural Language Processing (NLP)  is a field in which the structure of language is analyzed using statistical methods to learn a language model describing the detailed structure of natural language [Manning, Schütze, 1999]. Statistical language models are used to automate the processing of text in tasks including parsing sentences to extract their grammatical structure, extracting entities from documents. classifying documents into categories, ranking documents numerically, summarizing documents, answering questions, translating documents and others. 
-
-Before the application of neural networks to language modeling, “core NLP techniques were dominated by machine-learning approaches that used linear models such as support vector machines or logistic regression, trained over very high dimensional yet very sparse feature vectors.” [Goldberg, 2015]  The primary challenge in the performance of these models was the *curse of dimensionality*, under which bag-of-words representations transformed to matrices via one-hot-encoding suffered from statistical insignificance across the deeply nested space in which they were encoded. Points become equidistant as more and more dimensions are added, so records appear more similar and there is not enough signal for an algorithm to work well [Theodoridis, Koutroumbas, 2008].
-
-## Text Embeddings
-
-In 2003, the paper Neural Probabilistic Language Model [Bengio, Ducharme, Vincent, Jauvin, 2003] demonstrated superior performance on several common NLP tasks using a distributed representation for words. A decade later, the rise of dense representations in the form of text embeddings like Word2Vec [Le, Mikolov, 2013] accelerated the development of DL methods for NLP. Text embeddings changed text encoding from a list of bits identifying the presence of words in a document under the bag-of-words model to a dense representation that describes the semantics of each word in terms of its position in a vector space where each dimension corresponds to a particular meaning [Tardy, 2017](https://www.quora.com/How-do-distributed-representation-avoid-the-curse-of-dimensionality-in-natural-language-processing-NLP/answer/Paul-Tardy). Neural networks work better with dense than with sparse representations. The chart below shows the difference between sparse and dense text feature representations.
-
-![](images/chapter_1/sparse_vs_dense_embedding.png)
-[Sparse vs. dense text encoding (Goldberg, 2015)](https://arxiv.org/abs/1510.00726) 
-
-<REMINDER: Ask Goldberg for permission>
-
-## Convolutional Neural Networks
-
-Convolutional Neural Networks are used for NLP tasks where local features are sufficient, such as document classification. As we’ll see, the most important signal for classifying documents are marker words and phrases common to documents of a given type and infrequent in the corpus overall. 
-
-## Recurrent Neural Networks
-
-Recurrent Neural Networks are used for NLP tasks where features need to be aware of a broader context within a sequence of words which is stored as internal state in each neuron and referenced in each output decision. 
+Each of these methods with the exception of active learning will be explained and demonstrated in Python in its own chapter to develop or enhance models built using Stack Overflow data.
 
 ## Chapter Bibliography
 
@@ -166,9 +197,10 @@ Recurrent Neural Networks are used for NLP tasks where features need to be aware
 * Hernández-González, J., Inza, I., & Lozano, J. A.; Weak supervision and other non-standard classification problems: A taxonomy. Intelligent Systems Group, University of the Basque Country, Donostia, Spain, 2016
 * Mintz, M; Bills, S; Snow, R; Jurafsky, D; [Distant supervision for relation extraction without labeled data](https://web.stanford.edu/~jurafsky/mintz.pdf). Stanford University, Stanford, CA, USA, 2009
 * Ratner, A; Bach, S; Ehrenberg, H; Fries, J; Wu, S; Ré, C; [Snorkel: Rapid Training Data Creation with Weak Supervision](https://arxiv.org/abs/1711.10160). Stanford University, Stanford, CA, USA, 2017
-* 
+* Peters, Neumann, et al.[Deep contextualized word representations](https://arxiv.org/abs/1802.05365). Allen Institute for Artificial Intelligence, Seattle, WA, USA. Paul G. Allen School of Computer Science & Engineering, University of Washington, WA, USA, 2018.
+* Young, T. Hazarika, D. Poria, S. Cambria, E. [Recent Trends in Deep Learning Based Natural Language Processing](https://arxiv.org/abs/1708.02709), Institute of Electrical and Electronics Engineers,  Piscataway, NJ, USA, 2018.
 
-# Chapter 2: Environment Setup
+# Chapter 2: Setup
 In this chapter we will recreate the environment in which the book’s examples were created so that you can run them without any problems. I’ve created Conda and Virtual Environments for you to use to run the Jupyter Notebooks that contain the book’s examples.
 
 In my previous book I setup EC2 and Vagrant environments in which to run the book’s code but since 2017 the Python ecosystem has developed to the point that I am going to refrain from providing thorough installation documentation for every requirement. The website for each library is a better resource than I can possibly create, and they are updated and maintained more frequently than this book. I will instead list requirements, link to the project pages and let the reader install the requirements themselves.
@@ -226,8 +258,8 @@ conda deactivate
 Alternatively you can use [virtualenv](https://virtualenv.pypa.io/en/latest/) and [pip](https://pypi.org/project/pip/). To setup the environment and install packages, run:
 
 ```bash
-# Add '-p </path/to/my/python>' to specify a Python other than the one in PATH
-virtualenv venv
+pip3 install virtualenv
+virtualenv -p </path/to/my/python3> venv  
 ```
 
 To activate this environment, run:
@@ -245,7 +277,7 @@ source deactivate
 
 ### Running Jupyter
 
-![](images/chapter_1/example_jupyter_notebook.png)
+![](README/example_jupyter_notebook.png)
 
 [Jupyter](https://jupyter.org/) is installed as part of creating the Python environment. To run Jupyter, you can run:
 
@@ -266,7 +298,7 @@ According to Stack Overflow co-founder Jeff Atwood in 2010, “Every question on
 
 Stack Overflow’s tag page has a tag search box, which enables users to filter tags by topic and find posts labeled with individual tags for learning by topic. Pictured below are the tag search results for tags including the word *data*, which might be a good starting point for learning by a budding data scientist.
 
-![](images/chapter_2/stackoverflow_tag_page.png)
+![](README/stackoverflow_tag_page.png)
 *Tag page for programming questions involving ‘data’ on stackoverflow.com*
 
 ### The Stack Overflow Dataset
@@ -306,12 +338,14 @@ A raw post record looks like:
 
 *Gee whiz, since all posts have at least one label… is this data a good fit for a book on weakly supervised learning? We are definitely data rich, but are we label poor?*
 
-In profiling the data, this isn’t an obvious small data problem where weakly supervised learning would be of interest, since the original dataset of questions and answers is over ten gigabytes compressed and consists of millions of records. Our stratified sample of questions is half a gigabyte in column compressed [Parquet](https://parquet.apache.org/) format and consists of 1.5 million questions that a convolutional neural network should have no problem classifying into tag labels. In fact there are several examples of Stack Overflow taggers on the web. As we’ll see, this is the case for frequent tags but when we try to extend coverage to less frequent tags, we run into sparsity and imbalanced data that create problems which make weak supervision attractive. We’ll be using weakly supervised learning to improve the model’s breadth rather than just its categorical accuracy on all tags. This process will use transfer learning, semi-supervised learning, weak supervision, distant supervision, and the [Snorkel](https://www.snorkel.org/) software package.
+In profiling the data, this isn’t an obvious small data problem where weakly supervised learning would be of interest, since the original dataset of questions and answers is over ten gigabytes compressed and consists of millions of records. Our stratified sample of questions is half a gigabyte in column compressed [Parquet](https://parquet.apache.org/) format and consists of 1.5 million questions that a convolutional neural network should have no problem classifying into tag labels. In fact there are several examples of Stack Overflow taggers on the web, but these tag only about 100 labels. As we’ll see, the problem is simple for frequent tags but when we try to extend coverage to less frequent tags, we run into sparse and imbalanced data that creates problems which make weakly supervised learning attractive.
+
+We’ll be using WSL to improve the model’s scope or number of labels rather than just its categorical accuracy on a small number of tags. This process will use transfer learning, semi-supervised learning, distant supervision, and weak supervision using the [Snorkel](https://www.snorkel.org/) software package.
 
 ## Multi-label? Sort of.
 There’s another aspect of sparsity to this problem that weak supervision can help with. Each question probably qualifies for more than five tags, but five is the maximum number of tags (in the data, 120 or so posts with six tags do show up) that can be assigned to any given question. This means the data is fairly sparse, almost like a standard multi-class problem if we seek maximum coverage with our labeler. We can use weak supervision to add labels to previously labeled posts to account for additional labels that were never an option.
 
-![](images/chapter_2/stackoverflow_max_five_tags.png)
+![](README/stackoverflow_max_five_tags.png)
 
 *Stack Overflow limits questions to a maximum of 5 tags, regardless of how many might really apply. Here I’m asking about implementing XML-CNN, an excellent algorithm for [extreme multilevel classification](http://manikvarma.org/downloads/XC/XMLRepository.html), and the UI prevents me from adding 8 tags that all apply.*
 
@@ -389,12 +423,12 @@ The [pyspark.sql.DataFrame.toPandas](https://spark.apache.org/docs/latest/api/py
 count_df.toPandas().plot(kind='bar', x='label', y='total', figsize=(4,6))
 ```
 
-![](images/chapter_2/question_tag_distribution.png)
+![](README/question_tag_distribution.png)
 
 As you can see the distribution is fairly normal and symmetric, so both your average and median question has only three labels. If we can label more records for sparse tags using weak supervision, we should be able to expand the coverage of the model significantly.
 
 ## Balancing Act: Stratified Sampling
-Unlike the Kaggle samples, in my early experiments with the raw Stack Overflow posts, I simply couldn’t get a tag classifier model to learn! The data was so imbalanced the model would optimize by learning to predict the most likely questions all the time, for every single record in the test data, and performance was terrible. Class and sample labels had little effect. I needed to resample the data.
+Unlike the Kaggle samples commonly used in examples, in my early experiments with the raw Stack Overflow posts, I simply couldn’t get a tag classifier model to learn! The data was so imbalanced the model would optimize by learning to predict the most likely questions all the time, for every single record in the test data, and performance was terrible. Class and sample labels had little effect. I needed to resample the data.
 
 There are several options for addressing imbalanced data:
 
@@ -410,26 +444,298 @@ This is very simple for a binary or multi class classification problem. For mult
 
 Before we can work with the data we need to trim it down to size and change the format to something more efficient. We’ll be using the non-code text from the post initially and the labels. 
 
-We’ll use PySpark for ETL of the raw data and then pandas to process it thereafter. During development I ended up moving as much text preprocessing as possible into PySpark because I ran into extremely slow performance and inadequate memory problems when performing it in pandas. Dask had the same issue or would freeze up, so Spark seemed the way to go.
+We’ll use [PySpark](https://spark.apache.org/docs/latest/api/python/index.html) for ETL of the raw data and then pandas to process it thereafter. During development I ended up moving as much text preprocessing as possible into PySpark because I ran into extremely slow performance and inadequate memory problems when performing it in pandas. Dask had the same issue or would freeze up, so Spark seemed the way to go.
 
 ### Parquet Format
 
-The data comes in a series of files: as a single large XML document , and this is an incredibly slow format to compute with in Spark. First I uncompressed the data from 7zip format, which produced a single XML file called *Posts.xml* and then I LZO compressed it for fast processing. 
+The data comes in a series of files: as a single large XML document , and this is an incredibly slow format to compute with in Spark. First I uncompressed the data from 7zip format, which produced a single XML file called *Posts.xml* and then I LZO compressed it for fast processing. You can download 7zip from [its download page](https://www.7-zip.org/download.html).
 
 ```bash
-
+cd deep_products/code/stackoverflow
+wget https://archive.org/download/stackexchange/stackoverflow.com-Posts.7z
+7z x stackoverflow.com-Posts.7z
 ```
 
-Then I used PySpark to convert the data from XML to Parquet. Parquet is a columnar storage format which is much more efficient for loading and storing columnar data than XML.
+Then we use PySpark to convert the data from XML to Parquet. Parquet is a columnar storage format which is much more efficient for loading and storing columnar data than XML. You will find yourself very unhappy if you work interactively with raw XML data. Check out the file [code/xml_to_parquet.spark.py]():
 
 ```python
 posts_df = spark.read.format('xml').options(rowTag='row').options(rootTag='posts')\
-                .load('data/stackoverflow/08-05-2019/Posts.xml.lzo')
+                .load('data/stackoverflow/Posts.xml')
 posts_df.write.mode('overwrite')\
-        .parquet('data/stackoverflow/08-05-2019/Posts.df.parquet')
+        .parquet('data/stackoverflow/Posts.df.parquet')
 ```
 
+### Filtering the Questions
 
+Next we need to process the Stack Overflow posts further by separating out questions that have an answer and at least one net upvote. Check out [code/get_questions.spark.py]().
+
+First, some housekeeping. There are flags for a debug mode if you alter the script, and for a report at the end which analyzes label duplication. Next, `PATHS` to the data are parametrized such that the bucket containing the events can be changed and so that you can run the script on AWS by loading it directly from S3 or locally if you have downloaded the data. Note that we’ll go over the script’s execution using `DEBUG = True` but you do not have to unless you’re altering the script.
+
+```python
+# Print debug info as we compute, takes extra time
+DEBUG=False
+
+# Print a report on record/label duplication at th eend
+REPORT=True
+
+# Define a set of paths for each step for local and S3
+PATH_SET='local'
+
+PATHS={
+	's3_bucket':'stackoverflow-events',
+	'posts':{
+	    'local':'data/stackoverflow/08-05-2019/Posts.df.parquet',
+		's3':'s3://stackoverflow-events/08-05-2019/Posts.df.parquet',
+	},
+	...
+}
+```
+
+Now we load the data and count the posts. We filter the posts to contain only questions by ensuring they have no parent post. We select higher quality posts by requiring there to be at least one answer and a net vote score of at least 1. This leaves out low quality questions that prevent the model from learning. There are 43,872,992 total posts but only 4,006,304 questions that meet our criteria.
+
+```python
+#
+# Get answered questions and not their answers
+#
+posts = spark.read.parquet(PATHS['posts'][PATH_SET])
+
+questions = posts.filter(posts._ParentId.isNull())\
+                 .filter(posts._AnswerCount > 0)\
+                 .filter(posts._Score > 1)
+
+# Combine title with body
+questions = questions.select(
+    F.concat(
+        F.col("_Title"),
+        F.lit(" "),
+        F.col("_Body")
+    ).alias('_Body'),
+    '_Tags'
+)
+questions.show()
+```
+
+We select and combine the *_Title* and *_Body* and alias it *_Body* and select the *_Tags*. This gives us all the raw data that we need to create a tagger.
+
+```
++--------------------+--------------------+
+|               _Body|               _Tags|
++--------------------+--------------------+
+|Convert Decimal t...|<c#><floating-poi...|
+|Percentage width ...|<html><css><css3>...|
+|How do I calculat...|<c#><.net><datetime>|
+|Calculate relativ...|<c#><datetime><ti...|
+|Determine a user'...|<html><browser><t...|
+|Difference betwee...|        <.net><math>|
++--------------------+--------------------+
+```
+
+We separate out the `all_tags` [RDD](https://spark.apache.org/docs/latest/rdd-programming-guide.html) containing a single long list of the text of tags extracted from the XML. The maximum length of a document that we’ll use is 200 words, and we’ll use the `__PAD__` token to pad documents shorter than 200 words. Next we define a method `extract_text(x)` that parses the HTML of the question, extracts all the text outside of code blocks and returns a list of words.
+
+```python
+# Count the number of each tag
+all_tags = questions.rdd.flatMap(lambda x: re.sub('[<>]', ' ', x['_Tags']).split())
+
+# Set the length of documents and the token to use to pad documents
+MAX_LEN = 200
+PAD_TOKEN = '__PAD__'
+tokenizer = RegexpTokenizer(r'\w+')
+
+def extract_text(x):
+    """Extract non-code text from posts (questions/answers)"""
+    doc = BeautifulSoup(x, 'lxml')
+    codes = doc.find_all('code')
+    [code.extract() if code else None for code in codes]
+    text = re.sub(r'http\S+', ' ', doc.text)
+    tokens = [x for x in tokenizer.tokenize(text) if x not in stop_words]
+    padded_tokens = [tokens[i] if len(tokens) > i else PAD_TOKEN for i in range(0, MAX_LEN)]
+    return padded_tokens
+```
+
+We define three variables to drive the remainder of the script. `tag_limit` defines the minimum number of times a tag must appear to be included in the tags that we will classify. The `stratify_limit` defines the minimum number of records to sample containing each tag. Finally, using `lower_limit` we define the minimum number of instances of tags that we will set aside to enrich using WSL to broaden the range of labels the classifier can handle.
+
+```python
+tag_limit, stratify_limit, lower_limit = 2000, 2000, 500
+```
+
+We need to count the number of posts containing each tag to determine which to leave in and which to filter out. We compute `tag_counts` as a dictionary keyed by the tag with a corresponding value the times it occurs.
+
+```python
+# Count the instances of each tag
+tag_counts_df = all_tags\
+    .groupBy(lambda x: x)\
+    .map(lambda x: Row(tag=x[0], total=len(x[1])))\
+    .toDF()\
+    .select('tag', 'total').orderBy(['total'], ascending=False)
+tag_counts_df.write.mode('overwrite').parquet(PATHS['tag_counts'][PATH_SET].format(tag_limit))
+tag_counts_df = spark.read.parquet(PATHS['tag_counts'][PATH_SET].format(tag_limit))
+
+# Create a local dict of tag counts
+local_tag_counts = tag_counts_df.rdd.collect()
+tag_counts = {x.tag: x.total for x in local_tag_counts}
+```
+
+Next we filter the tag counts to those with more instances than our `tag_limit` of 2,000. We compute a `tag_count` to see how many tags made it through the filter. Then we compute a list of `valid_tags` that we’ll use to filter to only include valid tags.
+
+```python
+# Count the good tags
+remaining_tags_df = tag_counts_df.filter(tag_counts_df.total > tag_limit)
+tag_total = remaining_tags_df.count()
+
+print(f'\n\nNumber of tags with > {tag_limit:,} instances: {tag_total:,}')
+
+valid_tags = remaining_tags_df.rdd.map(lambda x: x['tag']).collect()
+```
+
+```
+Number of tags with > 2,000 instances: 786
+```
+
+Next we create a list of tags with greater than our `lower_limit` of 500 and less than or equal to our `tag_limit` of 2,000.
+
+```python
+# Count the less frequent tags
+bad_tags_df = tag_counts_df.filter(
+    (tag_counts_df.total <= tag_limit) & (tag_counts_df.total > lower_limit)
+)
+bad_tag_total = bad_tags_df.count()
+
+print(f'Number of tags with >= {lower_limit:,} and lower than/equal to {tag_limit:,} instances: {bad_tag_total:,}\n\n')
+
+bad_tags = bad_tags_df.rdd.map(lambda x: x['tag']).collect()
+```
+
+```
+Number of tags with >= 500 and lower than/equal to 2,000 instances: 1,819
+```
+
+Next we turn the concatenated title and body of the questions into a list of words, and the tags a list of tags.
+
+```python
+# Turn text of body and tags into lists of words
+questions_lists = questions.rdd.map(
+    lambda x: (extract_text(x['_Body']), re.sub('[<>]', ' ', x['_Tags']).split())
+)
+print(questions_lists.first())
+```
+
+The first record of the data appears as expected:
+
+```
+['How', 'I', 'calculate', 'someone', 'age', 'C', 'Given', 'representing', 'person', 'birthday', 'I', 'calculate', 'age', 'years', '__PAD__', '__PAD__', '__PAD__', '__PAD__', ...], ['c#', '.net', 'datetime'])
+```
+
+Now we need to filter `questions_lists` such that they contain at least one valid tag and then we need to remove all tags that aren’t valid.
+
+```python
+# 1. Only questions with at least one tag in our list
+# 2. Drop tags not in our list
+filtered_lists = questions_lists\
+    .filter(lambda x: bool(set(x[1]) & set(valid_tags)))\
+    .map(lambda x: (x[0], [y for y in x[1] if y in valid_tags]))
+```
+
+We also set aside other questions without a valid tag for later enrichment using weakly supervised learning and write them to disk or S3, depending on your `PATH_SET`. Note that we create a [pyspark.sql.DataFrame](https://spark.apache.org/docs/latest/api/python/pyspark.sql.html#pyspark.sql.DataFrame) using [`RDD.map()`](https://spark.apache.org/docs/latest/api/python/pyspark.html#pyspark.RDD.map) and by creating an RDD containing a series of [`pyspark.sql.Row`](https://spark.apache.org/docs/latest/api/python/pyspark.sql.html#pyspark.sql.Row) and then calling [`RDD.toDF()`](https://github.com/apache/spark/blob/1217996f1574f758d8cccc1c4e3846452d24b35b/python/pyspark/sql/session.py#L44-L60). Note that the `toDF()` method isn’t actually a member of the RDD class, it is monkey patched and calls `sparkSession.createDataFrame()`. We persist the ‘bad questions’ using Parquet format.
+
+```python
+#  Set aside other questions without frequent enough tags for enrichment via Snorkel
+bad_questions = questions_lists\
+    .filter(lambda x: bool(set(x[1]) & set(bad_tags)))\
+    .map(lambda x: (x[0], [y for y in x[1] if y in bad_tags]))
+bad_questions_df = bad_questions.map(lambda x: Row(_Body=x[0], _Tags=x[1])).toDF()
+bad_questions_df.write.mode('overwrite').parquet(
+    PATHS['bad_questions'][PATH_SET].format(tag_limit, lower_limit)
+)
+```
+
+Note that managing memory was a constant challenge with this script, even on *r5.12xlarge* EC2 instances, so we must explicitly free relations from memory and then `gc.collect()`.  Also note that although I haven’t included every write/read, we often write a relation to disk and then load it to ensure it doesn’t have to be recomputed, taking up more memory.
+
+```python
+# Explicitly recover memory
+del tag_counts_df
+del bad_tags_df
+del questions_lists
+del bad_questions
+del bad_questions_df
+
+gc.collect()
+```
+
+I ran into memory problems in one hot encoding the data in pandas, so I one-hot encoded it using PySpark. First we create a DataFrame, `questions_tags`. Then we group all  `remaining_tags`  into one reducer with `groupBy(lambda x: 1)` then we emit a single long list with `flatMap()` and sort it alphabetically, finally enumerating it to create a list of tags such as `(0, 'alpha'), (1, 'beta')`. We then use this enumerated list to create forward and backwards indexes to and from tags and their indexes. Finally we free up the memory of `remaining_tags_df`.
+
+```python
+questions_tags = filtered_lists.map(lambda x: Row(_Body=x[0], _Tags=x[1])).toDF()
+
+# One-hot-encode the multilabel tags
+enumerated_labels = [
+    z for z in enumerate(
+        sorted(
+            remaining_tags_df.rdd
+            .groupBy(lambda x: 1)
+            .flatMap(lambda x: [y.tag for y in x[1]])
+            .collect()
+        )
+    )
+]
+tag_index = {x: i for i, x in enumerated_labels}
+index_tag = {i: x for i, x in enumerated_labels}
+
+# Explicitly free RAM
+del remaining_tags_df
+gc.collect()
+```
+
+Note that [pyspark.ml](https://spark.apache.org/docs/latest/api/python/pyspark.ml.html) has utilities for one-hot encoding data but these functions do not work for multilabel data, so we must implement this ourselves. We define a function `one_hot_encode(tag_list, enumerated_labels)` that takes a list of string tags as the first argument and the complete list of enumerated labels as the second argument. Then it transforms the tag list into a one-hot representation by iterating through the `enumerated_labels` in their entirety, appending a 1 when a tag is present in `tag_list` and a 0 when a tag is not. This produces a list of `len(enumerated_labels)` for each record, which is a one-hot encoding of the tags. Finally we create a DataFrame from this data, `one_hot_df`.
+
+```python
+def one_hot_encode(tag_list, enumerated_labels):
+    """PySpark can't one-hot-encode multilabel data, so we do it ourselves."""
+
+    one_hot_row = []
+    for i, label in enumerated_labels:
+        if index_tag[i] in tag_list:
+            one_hot_row.append(1)
+        else:
+            one_hot_row.append(0)
+    assert(len(one_hot_row) == len(enumerated_labels))
+    return one_hot_row
+
+# One hot encode the data using one_hot_encode()
+one_hot_questions = questions_tags.rdd.map(
+    lambda x: Row(_Body=x._Body, _Tags=one_hot_encode(x._Tags, enumerated_labels))
+)
+
+# Create a DataFrame out of the one-hot encoded RDD
+schema = T.StructType([
+    T.StructField("_Body", T.ArrayType(
+        T.StringType()
+    )),
+    T.StructField("_Tags", T.ArrayType(
+        T.IntegerType()
+    ))
+])
+
+one_hot_df = spark.createDataFrame(
+    one_hot_questions,
+    schema
+)
+one_hot_df.show()
+```
+
+Which prints the one-hot encoded tags:
+
+```
++--------------------+--------------------+
+|               _Body|               _Tags|
++--------------------+--------------------+
+|[Convert, Decimal...|[0, 0, 0, 0, 0, 0...|
+|[Percentage, widt...|[0, 0, 0, 0, 0, 0...|
+|[How, I, calculat...|[0, 1, 0, 0, 0, 0...|
+|[Calculate, relat...|[0, 0, 0, 0, 0, 0...|
+|[Determine, user,...|[0, 0, 0, 0, 0, 0...|
+|[Difference, Math...|[0, 1, 0, 0, 0, 0...|
++--------------------+--------------------+
+```
 
 ## Building a Tag Classifier Model
 We treat this as a multi-class, multi-label problem. 
@@ -523,7 +829,7 @@ print(
 
 ### Preparing the Data
 
-We need to join the previously tokenized text back into a string for use in a Tokenizer, which provides useful properties. In addition, making the number of documents a multiple of batch size is a requirement for Tensorflow/Keras to split work among multiple GPUs and to use certain models such as Elmo.
+We need to join the previously tokenized text back into a string for use in a Tokenizer, which provides useful properties. In addition, making the number of documents a multiple of batch size is a requirement for Tensorflow/Keras to split work among multiple GPUs and to use certain models such as GloVe.
 
 ```python
 import math
@@ -668,7 +974,7 @@ OPTIMIZER           = 'adam'
 
 In Kim-CNN, we start by encoding the sequences using an *Embedding*, followed by a *Dropout* layer to reduce overfitting. Next we split the graph into multiple *Conv1D* layers with different widths, each followed by *MaxPool1D*. These are joined by concatenation and are intended to characterize patterns of different size sequence lengths in the documents. There follows another *Conv1D*/*GlobalMaxPool1D* layer to summarize the most important of these patterns. This is followed by flattening into a *Dense* layer and then on to the final *sigmoid* output layer. Otherwise we use *selu* throughout.
 
-![](images/chapter_2/kim_cnn_model_architecture.png)
+![](README/kim_cnn_model_architecture.png)
 
 <REMINDER: Ask Kim for permission to use this image before publishing!>
 
@@ -886,7 +1192,7 @@ pd.DataFrame(prediction_tests)
 
 We can see from these three records that the model is doing fairly well. This tells a different story than performance metrics alone. It is so strange that most machine learning examples just compute performance and don’t actually employ the `predict()` method! At the end of the day statistical performance is irrelevant and what matters is the real world performance - which is not contained in simple summary statistics!
 
-![](images/chapter_2/jupyter_results.png)
+![](README/jupyter_results.png)
 
 ## Chapter Bibliography
 
