@@ -26,3 +26,4 @@ textblob
 texttable
 torch==1.1.0
 wandb
+dill
