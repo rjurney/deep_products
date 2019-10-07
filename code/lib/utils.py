@@ -1,5 +1,6 @@
 # Utilities for the book's notebooks
 
+from bs4 import BeautifulSoup
 import nltk
 from nltk.tokenize import RegexpTokenizer
 from nltk.corpus import stopwords
